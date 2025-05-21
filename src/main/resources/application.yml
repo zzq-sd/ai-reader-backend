@@ -1,0 +1,108 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api/v1
+
+spring:
+  application:
+    name: ai-reader-backend
+  
+  # 数据源配置 (MySQL)
+  datasource:
+    url: jdbc:mysql://localhost:3306/ai_reader?useSSL=false&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
+    username: root
+    password: ZZQ123456zzq
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 30000
+      connection-timeout: 30000
+  
+  # JPA配置
+  jpa:
+    database-platform: org.hibernate.dialect.MySQL8Dialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  
+  # MongoDB配置
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/ai_reader
+    
+    # Neo4j配置
+    neo4j:
+      uri: bolt://localhost:7687
+      username: neo4j
+      password: neo4j
+  
+  # RabbitMQ配置
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    listener:
+      simple:
+        retry:
+          enabled: true
+          initial-interval: 5000
+          max-attempts: 3
+          multiplier: 2
+          max-interval: 30000
+  
+  # 文件上传配置
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 15MB
+
+# JWT配置
+jwt:
+  secret: 84c7ec5d1c43cdd16d9659b42c1cd91f7ba5b2d12c7e49fda90bda9e0e97cfa9
+  access-token-expiration: 3600000  # 1小时
+  refresh-token-expiration: 604800000  # 7天
+
+# 自定义RSS配置
+rss:
+  fetch:
+    cron: 0 0 */6 * * *  # 每6小时抓取一次RSS源
+    timeout: 30000  # 请求超时时间（毫秒）
+
+# AI服务配置（示例，具体根据实际的AI服务进行配置）
+ai:
+  service:
+    url: http://localhost:9000/api
+    apiKey: your-api-key-here
+    timeout: 60000  # 请求超时时间（毫秒）
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.aireader.backend: DEBUG
+    org.springframework.data: INFO
+    org.springframework.security: INFO
+
+# SpringDoc OpenAPI配置
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+  packages-to-scan: com.aireader.backend.controller
+
+# Actuator端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized 
