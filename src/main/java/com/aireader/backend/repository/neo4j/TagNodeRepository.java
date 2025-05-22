@@ -15,7 +15,7 @@ import java.util.Optional;
  * 标签节点资源库接口
  */
 @Repository
-public interface TagNodeRepository extends Neo4jRepository<TagNode, Long> {
+public interface TagNodeRepository extends Neo4jRepository<TagNode, String> {
     
     /**
      * 根据MySQL ID查找标签节点
@@ -49,7 +49,7 @@ public interface TagNodeRepository extends Neo4jRepository<TagNode, Long> {
      * @return 笔记节点列表
      */
     @Query("MATCH (t:Tag)-[:TAGGED_NOTE]->(n:Note) WHERE ID(t) = $tagId RETURN n")
-    List<Map<String, Object>> findNotesByTagId(@Param("tagId") Long tagId);
+    List<Map<String, Object>> findNotesByTagId(@Param("tagId") String tagId);
     
     /**
      * 查找带有指定标签的所有文章
@@ -58,7 +58,7 @@ public interface TagNodeRepository extends Neo4jRepository<TagNode, Long> {
      * @return 文章节点列表
      */
     @Query("MATCH (t:Tag)-[:TAGGED_ARTICLE]->(a:Article) WHERE ID(t) = $tagId RETURN a")
-    List<Map<String, Object>> findArticlesByTagId(@Param("tagId") Long tagId);
+    List<Map<String, Object>> findArticlesByTagId(@Param("tagId") String tagId);
     
     /**
      * 查找用户最常使用的标签

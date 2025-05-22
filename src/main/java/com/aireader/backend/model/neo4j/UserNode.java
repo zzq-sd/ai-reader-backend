@@ -21,8 +21,7 @@ import java.util.Set;
 public class UserNode {
 
     @Id
-    @GeneratedValue
-    private Long id;
+    private String id;
 
     @Property("mysqlId")
     private String mysqlId;

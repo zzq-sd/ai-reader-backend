@@ -13,18 +13,52 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * 标签资源库接口
+ * 标签仓库接口
  */
 @Repository
 public interface TagRepository extends JpaRepository<Tag, String> {
     
     /**
-     * 查找用户的所有标签
+     * 根据用户查找所有标签
      * 
-     * @param user 用户
+     * @param user 用户对象
      * @return 标签列表
      */
     List<Tag> findByUser(User user);
+    
+    /**
+     * 根据名称和用户查找标签
+     * 
+     * @param name 标签名称
+     * @param user 用户对象
+     * @return 标签对象
+     */
+    Optional<Tag> findByNameAndUser(String name, User user);
+    
+    /**
+     * 根据用户查找最常用的标签
+     * 
+     * @param user  用户对象
+     * @param limit 限制数量
+     * @return 标签列表
+     */
+    @Query(value = "SELECT t.* FROM tags t " +
+            "JOIN note_tags nt ON t.id = nt.tag_id " +
+            "JOIN notes n ON nt.note_id = n.id " +
+            "WHERE t.user_id = :userId " +
+            "GROUP BY t.id " +
+            "ORDER BY COUNT(nt.note_id) DESC " +
+            "LIMIT :limit", nativeQuery = true)
+    List<Tag> findMostUsedTagsByUser(@Param("userId") String userId, @Param("limit") int limit);
+    
+    /**
+     * 根据名称开头和用户查找标签（自动完成功能）
+     * 
+     * @param nameStartsWith 标签名称开头
+     * @param user           用户对象
+     * @return 标签列表
+     */
+    List<Tag> findByNameStartsWithIgnoreCaseAndUser(String nameStartsWith, User user);
     
     /**
      * 查找用户的所有标签（分页）
@@ -43,25 +77,6 @@ public interface TagRepository extends JpaRepository<Tag, String> {
      * @return 标签列表
      */
     List<Tag> findByUserAndNameContainingIgnoreCase(User user, String nameKeyword);
-    
-    /**
-     * 检查用户是否已有特定名称的标签
-     * 
-     * @param user 用户
-     * @param name 标签名称
-     * @return 标签Optional包装
-     */
-    Optional<Tag> findByUserAndName(User user, String name);
-    
-    /**
-     * 查询使用最多的标签
-     * 
-     * @param user 用户
-     * @param limit 限制条数
-     * @return 标签列表
-     */
-    @Query("SELECT t FROM Tag t JOIN t.notes n WHERE t.user = :user GROUP BY t ORDER BY COUNT(n) DESC")
-    List<Tag> findMostUsedTags(@Param("user") User user, Pageable pageable);
     
     /**
      * 检查标签是否属于特定用户

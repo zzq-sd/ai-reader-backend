@@ -13,7 +13,7 @@ import java.util.Optional;
  * Neo4j文章节点数据访问接口
  */
 @Repository
-public interface ArticleNodeRepository extends Neo4jRepository<ArticleNode, Long> {
+public interface ArticleNodeRepository extends Neo4jRepository<ArticleNode, String> {
 
     /**
      * 根据MySQL ID查找文章节点
@@ -46,7 +46,7 @@ public interface ArticleNodeRepository extends Neo4jRepository<ArticleNode, Long
      * @return 文章节点列表
      */
     @Query("MATCH (a:Article)-[r:MENTIONS_CONCEPT]->(c:Concept) WHERE id(c) = $conceptId RETURN a ORDER BY r.frequency DESC")
-    List<ArticleNode> findArticlesByConceptId(@Param("conceptId") Long conceptId);
+    List<ArticleNode> findArticlesByConceptId(@Param("conceptId") String conceptId);
 
     /**
      * 查找提及指定概念名称的文章
@@ -56,6 +56,17 @@ public interface ArticleNodeRepository extends Neo4jRepository<ArticleNode, Long
      */
     @Query("MATCH (a:Article)-[r:MENTIONS_CONCEPT]->(c:Concept {name: $conceptName}) RETURN a ORDER BY r.frequency DESC")
     List<ArticleNode> findArticlesByConceptName(@Param("conceptName") String conceptName);
+    
+    /**
+     * 查找与指定概念相关的文章并限制数量
+     * 
+     * @param conceptName 概念名称
+     * @param limit 限制数量
+     * @return 文章节点列表
+     */
+    @Query("MATCH (a:Article)-[r:MENTIONS]->(c:Concept {name: $conceptName}) " +
+           "RETURN a ORDER BY r.relevance DESC LIMIT $limit")
+    List<ArticleNode> findArticlesByConceptName(@Param("conceptName") String conceptName, @Param("limit") int limit);
 
     /**
      * 查找与指定文章相关的文章（通过共同概念）
@@ -71,6 +82,32 @@ public interface ArticleNodeRepository extends Neo4jRepository<ArticleNode, Long
            "ORDER BY commonConcepts DESC, relevanceScore DESC " +
            "LIMIT $limit")
     List<ArticleNode> findRelatedArticles(@Param("mysqlId") String mysqlId, @Param("limit") int limit);
+    
+    /**
+     * 查找与指定文章相似的文章
+     * 
+     * @param articleId 文章ID
+     * @param limit 限制数量
+     * @return 文章节点列表
+     */
+    @Query("MATCH (a:Article {id: $articleId})-[:MENTIONS]->(c:Concept)<-[:MENTIONS]-(similar:Article) " +
+           "WHERE a <> similar " +
+           "WITH similar, count(c) AS commonConcepts " +
+           "RETURN similar ORDER BY commonConcepts DESC LIMIT $limit")
+    List<ArticleNode> findSimilarArticles(@Param("articleId") String articleId, @Param("limit") int limit);
+    
+    /**
+     * 查找推荐给用户的文章
+     * 
+     * @param userId 用户ID
+     * @param limit 限制数量
+     * @return 文章节点列表
+     */
+    @Query("MATCH (u:User {mysqlId: $userId})-[:HAS_READ]->(a:Article)-[:MENTIONS]->(c:Concept)<-[:MENTIONS]-(rec:Article) " +
+           "WHERE NOT (u)-[:HAS_READ]->(rec) " +
+           "WITH rec, count(DISTINCT c) AS relevance " +
+           "RETURN rec ORDER BY relevance DESC LIMIT $limit")
+    List<ArticleNode> findRecommendedArticlesForUser(@Param("userId") String userId, @Param("limit") int limit);
 
     /**
      * 获取知识图谱的子图数据（用于可视化）

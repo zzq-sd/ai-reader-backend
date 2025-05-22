@@ -16,84 +16,84 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * 用户文章交互资源库接口
+ * 用户文章交互仓库接口
  */
 @Repository
 public interface UserArticleInteractionRepository extends JpaRepository<UserArticleInteraction, UserArticleInteractionId> {
     
     /**
-     * 查找用户与文章的交互记录
+     * 根据用户和文章查找交互记录
      * 
-     * @param user 用户
-     * @param articleMetadata 文章元数据
-     * @return 交互记录Optional包装
+     * @param user            用户对象
+     * @param articleMetadata 文章元数据对象
+     * @return 交互记录对象
      */
     Optional<UserArticleInteraction> findByUserAndArticleMetadata(User user, ArticleMetadata articleMetadata);
     
     /**
-     * 查找用户收藏的所有文章
+     * 根据用户查找所有收藏的文章（分页）
      * 
-     * @param user 用户
+     * @param user     用户对象
      * @param pageable 分页参数
-     * @return 分页交互记录列表
+     * @return 交互记录分页对象
      */
-    Page<UserArticleInteraction> findByUserAndFavoriteTrue(User user, Pageable pageable);
+    Page<UserArticleInteraction> findByUserAndIsFavoriteTrue(User user, Pageable pageable);
     
     /**
-     * 查找用户阅读过的所有文章
+     * 根据用户查找所有已读的文章（分页）
      * 
-     * @param user 用户
+     * @param user     用户对象
      * @param pageable 分页参数
-     * @return 分页交互记录列表
+     * @return 交互记录分页对象
      */
-    Page<UserArticleInteraction> findByUserAndReadTrue(User user, Pageable pageable);
+    Page<UserArticleInteraction> findByUserAndIsReadTrue(User user, Pageable pageable);
     
     /**
      * 查找用户最近阅读的文章
      * 
-     * @param user 用户
-     * @param limit 限制条数
+     * @param user     用户对象
+     * @param pageable 分页参数
      * @return 交互记录列表
      */
-    @Query("SELECT uai FROM UserArticleInteraction uai WHERE uai.user = :user AND uai.read = true ORDER BY uai.lastReadAt DESC")
+    @Query("SELECT uai FROM UserArticleInteraction uai WHERE uai.user = :user AND uai.isRead = true ORDER BY uai.lastReadAt DESC")
     List<UserArticleInteraction> findRecentlyReadArticles(@Param("user") User user, Pageable pageable);
     
     /**
      * 查询特定时间段内用户收藏的文章
      * 
-     * @param user 用户
+     * @param user      用户对象
      * @param startDate 开始时间
-     * @param endDate 结束时间
-     * @param pageable 分页参数
-     * @return 分页交互记录列表
+     * @param endDate   结束时间
+     * @param pageable  分页参数
+     * @return 交互记录分页对象
      */
-    Page<UserArticleInteraction> findByUserAndFavoriteTrueAndFavoritedAtBetween(
+    Page<UserArticleInteraction> findByUserAndIsFavoriteTrueAndFavoritedAtBetween(
             User user, LocalDateTime startDate, LocalDateTime endDate, Pageable pageable);
     
     /**
      * 查询用户在特定时间之后阅读的文章
      * 
-     * @param user 用户
-     * @param date 时间下限
+     * @param user     用户对象
+     * @param date     时间下限
      * @param pageable 分页参数
-     * @return 分页交互记录列表
+     * @return 交互记录分页对象
      */
-    Page<UserArticleInteraction> findByUserAndReadTrueAndLastReadAtAfter(
+    Page<UserArticleInteraction> findByUserAndIsReadTrueAndLastReadAtAfter(
             User user, LocalDateTime date, Pageable pageable);
     
     /**
      * 统计用户收藏的文章数量
      * 
-     * @param user 用户
+     * @param user 用户对象
      * @return 收藏文章数量
      */
-    long countByUserAndFavoriteTrue(User user);
+    long countByUserAndIsFavoriteTrue(User user);
     
     /**
      * 统计用户阅读过的文章数量
      * 
-     * @param user 用户
+     * @param user 用户对象
      * @return 阅读过的文章数量
      */
-    long countByUserAndReadTrue(User user);
+    long countByUserAndIsReadTrue(User user);
 } 

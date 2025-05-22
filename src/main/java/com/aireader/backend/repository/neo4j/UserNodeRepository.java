@@ -16,7 +16,7 @@ import java.util.Optional;
  * 用户节点资源库接口
  */
 @Repository
-public interface UserNodeRepository extends Neo4jRepository<UserNode, Long> {
+public interface UserNodeRepository extends Neo4jRepository<UserNode, String> {
     
     /**
      * 根据MySQL ID查找用户节点
@@ -46,14 +46,20 @@ public interface UserNodeRepository extends Neo4jRepository<UserNode, Long> {
      * @param pageable 分页参数
      * @return 相似文章节点列表
      */
-    @Query("MATCH (a:Article)<-[r:READ]-(u:User {mysqlId: $userId}) " +
+    @Query(value = "MATCH (a:Article)<-[r:READ]-(u:User {mysqlId: $userId}) " +
            "WITH a, r " +
            "MATCH (a)-[:MENTIONS_CONCEPT]->(c:Concept)<-[:MENTIONS_CONCEPT]-(similar:Article) " +
            "WHERE ID(a) = $articleId AND ID(similar) <> $articleId " +
            "RETURN similar, count(c) as commonConcepts " +
-           "ORDER BY commonConcepts DESC")
+           "ORDER BY commonConcepts DESC " +
+           "SKIP $skip LIMIT $limit",
+           countQuery = "MATCH (a:Article)<-[r:READ]-(u:User {mysqlId: $userId}) " +
+           "WITH a, r " +
+           "MATCH (a)-[:MENTIONS_CONCEPT]->(c:Concept)<-[:MENTIONS_CONCEPT]-(similar:Article) " +
+           "WHERE ID(a) = $articleId AND ID(similar) <> $articleId " +
+           "RETURN count(DISTINCT similar)")
     Page<Map<String, Object>> findSimilarReadArticles(
-            @Param("articleId") Long articleId, 
+            @Param("articleId") String articleId, 
             @Param("userId") String userId, 
             Pageable pageable);
     

@@ -10,6 +10,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
@@ -151,5 +152,65 @@ public class JwtTokenProvider {
                 .parseClaimsJws(token)
                 .getBody()
                 .getSubject();
+    }
+    
+    /**
+     * 从令牌中获取用户名
+     * 
+     * @param token JWT令牌
+     * @return 用户名
+     */
+    public String getUsernameFromToken(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody()
+                .get("username", String.class);
+    }
+    
+    /**
+     * 根据认证信息生成令牌
+     * 
+     * @param authentication 认证信息
+     * @return JWT访问令牌
+     */
+    public String generateToken(Authentication authentication) {
+        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        return createAccessToken(
+                userDetails.getUsername(), // 这里使用用户名作为ID，实际应用中可能需要从用户服务获取真实的用户ID
+                userDetails.getUsername(),
+                userDetails.getAuthorities()
+        );
+    }
+    
+    /**
+     * 根据认证信息生成刷新令牌
+     * 
+     * @param authentication 认证信息
+     * @return JWT刷新令牌
+     */
+    public String generateRefreshToken(Authentication authentication) {
+        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        return createRefreshToken(userDetails.getUsername());
+    }
+    
+    /**
+     * 根据用户名生成令牌
+     * 
+     * @param username 用户名
+     * @return JWT访问令牌
+     */
+    public String generateTokenFromUsername(String username) {
+        Date now = new Date();
+        Date validity = new Date(now.getTime() + accessTokenExpiration);
+        
+        return Jwts.builder()
+                .setSubject(username)
+                .claim("username", username)
+                .setIssuedAt(now)
+                .setExpiration(validity)
+                .signWith(key)
+                .compact();
     }
 } 

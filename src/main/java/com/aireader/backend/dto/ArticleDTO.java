@@ -39,7 +39,7 @@ public class ArticleDTO {
     private String plainTextContent;
 
     // AI处理信息
-    private ArticleMetadata.AiProcessingStatus aiProcessingStatus;
+    private String aiProcessingStatus;
     private String[] extractedKeywords;
     private String[] extractedEntities;
     private String[] extractedTopics;
@@ -69,10 +69,8 @@ public class ArticleDTO {
         dto.setTitle(metadata.getTitle());
         dto.setAuthor(metadata.getAuthor());
         dto.setPublicationDate(metadata.getPublicationDate());
-        dto.setSummary(metadata.getSummary());
-        dto.setOriginalUrl(metadata.getOriginalUrl());
-        dto.setImageUrl(metadata.getImageUrl());
-        dto.setCategories(metadata.getCategories());
+        dto.setSummary(metadata.getSummaryText());
+        dto.setOriginalUrl(metadata.getLinkToOriginal());
         dto.setCreatedAt(metadata.getCreatedAt());
         dto.setAiProcessingStatus(metadata.getAiProcessingStatus());
         

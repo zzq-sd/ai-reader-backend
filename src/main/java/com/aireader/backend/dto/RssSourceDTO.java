@@ -35,15 +35,21 @@ public class RssSourceDTO {
 
     private String iconUrl;
 
-    private RssSource.FetchStatus fetchStatus;
+    private String fetchStatus;
 
-    private String fetchError;
+    private String errorMessage;
 
     private LocalDateTime lastFetchedAt;
 
     private boolean active;
 
+    private boolean isPublic;
+
+    private String userId;
+
     private LocalDateTime createdAt;
+
+    private LocalDateTime updatedAt;
 
     /**
      * 将实体转换为DTO
@@ -57,18 +63,18 @@ public class RssSourceDTO {
         }
         
         return RssSourceDTO.builder()
-                .id(rssSource.getId())
+                .id(rssSource.getId().toString())
                 .url(rssSource.getUrl())
                 .name(rssSource.getName())
                 .category(rssSource.getCategory())
                 .description(rssSource.getDescription())
-                .websiteUrl(rssSource.getWebsiteUrl())
-                .iconUrl(rssSource.getIconUrl())
+                .isPublic(rssSource.isPublic())
+                .userId(rssSource.getUser() != null ? rssSource.getUser().getId().toString() : null)
                 .fetchStatus(rssSource.getFetchStatus())
-                .fetchError(rssSource.getFetchError())
+                .errorMessage(rssSource.getErrorMessage())
                 .lastFetchedAt(rssSource.getLastFetchedAt())
-                .active(rssSource.isActive())
                 .createdAt(rssSource.getCreatedAt())
+                .updatedAt(rssSource.getUpdatedAt())
                 .build();
     }
 
@@ -83,9 +89,7 @@ public class RssSourceDTO {
                 .name(this.name)
                 .category(this.category)
                 .description(this.description)
-                .websiteUrl(this.websiteUrl)
-                .iconUrl(this.iconUrl)
-                .active(this.active)
+                .isPublic(this.isPublic)
                 .build();
     }
 }

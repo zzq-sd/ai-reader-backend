@@ -14,82 +14,75 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * 文章元数据数据访问接口
+ * 文章元数据仓库接口
  */
 @Repository
 public interface ArticleMetadataRepository extends JpaRepository<ArticleMetadata, String> {
-
-    /**
-     * 查找特定RSS源的所有文章
-     *
-     * @param rssSource RSS源
-     * @param pageable 分页参数
-     * @return 文章列表分页结果
-     */
-    Page<ArticleMetadata> findByRssSource(RssSource rssSource, Pageable pageable);
-
-    /**
-     * 通过MongoDB ID查找文章元数据
-     *
-     * @param mongodbContentId MongoDB中的文章内容ID
-     * @return 文章元数据
-     */
-    Optional<ArticleMetadata> findByMongodbContentId(String mongodbContentId);
-
-    /**
-     * 通过GUID查找特定RSS源的文章
-     *
-     * @param guid 文章的GUID
-     * @param rssSource RSS源
-     * @return 文章元数据
-     */
-    Optional<ArticleMetadata> findByGuidAndRssSource(String guid, RssSource rssSource);
-
-    /**
-     * 通过原始URL查找特定RSS源的文章
-     *
-     * @param originalUrl 文章的原始URL
-     * @param rssSource RSS源
-     * @return 文章元数据
-     */
-    Optional<ArticleMetadata> findByOriginalUrlAndRssSource(String originalUrl, RssSource rssSource);
-
-    /**
-     * 查找特定时间范围内发布的文章
-     *
-     * @param startDate 开始时间
-     * @param endDate 结束时间
-     * @param pageable 分页参数
-     * @return 文章列表分页结果
-     */
-    Page<ArticleMetadata> findByPublicationDateBetween(LocalDateTime startDate, LocalDateTime endDate, Pageable pageable);
-
-    /**
-     * 查找待处理的文章列表
-     *
-     * @param status AI处理状态
-     * @param pageable 分页参数
-     * @return 文章列表分页结果
-     */
-    Page<ArticleMetadata> findByAiProcessingStatus(ArticleMetadata.AiProcessingStatus status, Pageable pageable);
-
-    /**
-     * 搜索文章
-     * 
-     * @param keyword 搜索关键词
-     * @param pageable 分页参数
-     * @return 文章列表分页结果
-     */
-    @Query("SELECT a FROM ArticleMetadata a WHERE a.title LIKE %:keyword% OR a.summary LIKE %:keyword%")
-    Page<ArticleMetadata> searchByKeyword(@Param("keyword") String keyword, Pageable pageable);
     
     /**
-     * 查询用户收藏的文章列表
+     * 根据RSS源查找文章元数据（分页）
      * 
-     * @param userId 用户ID
-     * @param pageable 分页参数
-     * @return 文章列表分页结果
+     * @param rssSource RSS源对象
+     * @param pageable  分页参数
+     * @return 文章元数据分页对象
      */
-    @Query("SELECT a FROM ArticleMetadata a JOIN UserArticleFavorite f ON f.article.id = a.id WHERE f.user.id = :userId")
-    Page<ArticleMetadata> findFavoritesByUserId(@Param("userId") String userId, Pageable pageable);
+    Page<ArticleMetadata> findByRssSource(RssSource rssSource, Pageable pageable);
+    
+    /**
+     * 根据原始链接查找文章元数据
+     * 
+     * @param linkToOriginal 原始链接
+     * @return 文章元数据对象
+     */
+    Optional<ArticleMetadata> findByLinkToOriginal(String linkToOriginal);
+    
+    /**
+     * 根据原始链接和RSS源查找文章元数据
+     * 
+     * @param linkToOriginal 原始链接
+     * @param rssSource      RSS源对象
+     * @return 文章元数据对象
+     */
+    Optional<ArticleMetadata> findByLinkToOriginalAndRssSource(String linkToOriginal, RssSource rssSource);
+    
+    /**
+     * 根据MongoDB内容ID查找文章元数据
+     * 
+     * @param mongodbContentId MongoDB内容ID
+     * @return 文章元数据对象
+     */
+    Optional<ArticleMetadata> findByMongodbContentId(String mongodbContentId);
+    
+    /**
+     * 查询需要AI处理的文章元数据
+     * 
+     * @param status   AI处理状态
+     * @param pageable 分页参数
+     * @return 文章元数据分页对象
+     */
+    Page<ArticleMetadata> findByAiProcessingStatus(String status, Pageable pageable);
+    
+    /**
+     * 全文搜索文章元数据
+     * 
+     * @param query    搜索关键词
+     * @param pageable 分页参数
+     * @return 文章元数据分页对象
+     */
+    @Query("SELECT a FROM ArticleMetadata a WHERE " +
+            "LOWER(a.title) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+            "LOWER(a.summaryText) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+            "LOWER(a.author) LIKE LOWER(CONCAT('%', :query, '%'))")
+    Page<ArticleMetadata> searchByKeyword(@Param("query") String query, Pageable pageable);
+    
+    /**
+     * 获取指定RSS源的最新文章元数据（限制数量）
+     * 
+     * @param rssSource RSS源对象
+     * @param limit     限制数量
+     * @return 文章元数据列表
+     */
+    @Query("SELECT a FROM ArticleMetadata a WHERE a.rssSource = :rssSource " +
+            "ORDER BY a.publicationDate DESC")
+    List<ArticleMetadata> findLatestByRssSource(@Param("rssSource") RssSource rssSource, Pageable limit);
 } 

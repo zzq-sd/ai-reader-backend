@@ -4,40 +4,29 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.neo4j.core.schema.*;
-
-import java.util.HashSet;
-import java.util.Set;
+import org.springframework.data.neo4j.core.schema.Id;
+import org.springframework.data.neo4j.core.schema.Node;
+import org.springframework.data.neo4j.core.schema.Property;
 
 /**
- * 知识图谱中的标签节点
+ * 标签节点Neo4j实体类
  */
-@Node("Tag")
 @Data
+@Node("Tag")
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class TagNode {
-
+    
     @Id
-    @GeneratedValue
-    private Long id;
-
+    private String id; // 自动生成的Neo4j ID
+    
     @Property("mysqlId")
-    private String mysqlId;
-
+    private String mysqlId; // 对应MySQL tags.id
+    
     @Property("name")
-    private String name;
-
+    private String name; // 标签名称
+    
     @Property("userId")
-    private String userId;
-
-    @Relationship(type = "TAGGED_NOTE", direction = Relationship.Direction.OUTGOING)
-    private Set<NoteNode> notes = new HashSet<>();
-
-    @Relationship(type = "TAGGED_ARTICLE", direction = Relationship.Direction.OUTGOING)
-    private Set<ArticleNode> articles = new HashSet<>();
-
-    @Relationship(type = "CREATED_BY", direction = Relationship.Direction.OUTGOING)
-    private UserNode user;
+    private String userId; // 创建该标签的用户ID
 } 

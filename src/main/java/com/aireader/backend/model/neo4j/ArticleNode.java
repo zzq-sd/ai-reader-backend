@@ -4,74 +4,55 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.neo4j.core.schema.*;
+import org.springframework.data.neo4j.core.schema.Id;
+import org.springframework.data.neo4j.core.schema.Node;
+import org.springframework.data.neo4j.core.schema.Property;
+import org.springframework.data.neo4j.core.schema.Relationship;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.springframework.data.neo4j.core.schema.Relationship.Direction.INCOMING;
+import static org.springframework.data.neo4j.core.schema.Relationship.Direction.OUTGOING;
+
 /**
- * 知识图谱中的文章节点
+ * 文章节点Neo4j实体类
  */
-@Node("Article")
 @Data
+@Node("Article")
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class ArticleNode {
-
+    
     @Id
-    @GeneratedValue
-    private Long id;
-
+    private String id; // 自动生成的Neo4j ID
+    
     @Property("mysqlId")
-    private String mysqlId;
-
+    private String mysqlId; // 对应MySQL article_metadata.id
+    
     @Property("mongoId")
-    private String mongoId;
-
+    private String mongoId; // 对应MongoDB articles_content._id
+    
     @Property("title")
     private String title;
-
-    @Property("author")
-    private String author;
-
+    
     @Property("publicationDate")
     private LocalDateTime publicationDate;
-
-    @Property("summary")
-    private String summary;
-
-    @Property("url")
-    private String url;
-
-    @Property("rssSourceId")
-    private String rssSourceId;
     
-    @Relationship(type = "MENTIONS_CONCEPT", direction = Relationship.Direction.OUTGOING)
-    private Set<ConceptRelation> conceptRelations = new HashSet<>();
-
-    /**
-     * 文章与概念间的关系
-     */
-    @RelationshipProperties
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ConceptRelation {
-        
-        @Id
-        @GeneratedValue
-        private Long id;
-        
-        @TargetNode
-        private Concept concept;
-        
-        @Property("frequency")
-        private Integer frequency = 1;
-        
-        @Property("confidence")
-        private Double confidence = 1.0;
-    }
+    @Property("originalUrl")
+    private String originalUrl;
+    
+    @Property("aiLastProcessedAt")
+    private LocalDateTime aiLastProcessedAt;
+    
+    @Relationship(type = "MENTIONS", direction = OUTGOING)
+    private Set<ConceptRelationship> concepts = new HashSet<>();
+    
+    @Relationship(type = "BELONGS_TO", direction = OUTGOING)
+    private RssSourceNode rssSource;
+    
+    @Relationship(type = "TAGGED_WITH", direction = OUTGOING)
+    private Set<TagRelationship> tags = new HashSet<>();
 } 

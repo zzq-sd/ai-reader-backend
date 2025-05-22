@@ -15,7 +15,7 @@ import java.util.Optional;
  * 笔记节点资源库接口
  */
 @Repository
-public interface NoteNodeRepository extends Neo4jRepository<NoteNode, Long> {
+public interface NoteNodeRepository extends Neo4jRepository<NoteNode, String> {
     
     /**
      * 根据MySQL ID查找笔记节点
@@ -40,8 +40,11 @@ public interface NoteNodeRepository extends Neo4jRepository<NoteNode, Long> {
      * @param pageable 分页参数
      * @return 笔记节点列表
      */
-    @Query("MATCH (n:Note)-[r:MENTIONS_CONCEPT]->(c:Concept) WHERE ID(c) = $conceptId RETURN n, r, c ORDER BY r.frequency DESC")
-    Page<NoteNode> findNotesByConceptId(@Param("conceptId") Long conceptId, Pageable pageable);
+    @Query(
+        value = "MATCH (n:Note)-[r:MENTIONS_CONCEPT]->(c:Concept) WHERE ID(c) = $conceptId RETURN n, r, c ORDER BY r.frequency DESC SKIP $skip LIMIT $limit",
+        countQuery = "MATCH (n:Note)-[r:MENTIONS_CONCEPT]->(c:Concept) WHERE ID(c) = $conceptId RETURN count(DISTINCT n)"
+    )
+    Page<NoteNode> findNotesByConceptId(@Param("conceptId") String conceptId, Pageable pageable);
     
     /**
      * 查找与特定文章相关的笔记
@@ -50,7 +53,7 @@ public interface NoteNodeRepository extends Neo4jRepository<NoteNode, Long> {
      * @return 笔记节点列表
      */
     @Query("MATCH (n:Note)-[:REFERS_TO]->(a:Article) WHERE ID(a) = $articleNodeId RETURN n")
-    List<NoteNode> findNotesByArticleId(@Param("articleNodeId") Long articleNodeId);
+    List<NoteNode> findNotesByArticleId(@Param("articleNodeId") String articleNodeId);
     
     /**
      * 查找含有特定概念的用户笔记
@@ -60,9 +63,15 @@ public interface NoteNodeRepository extends Neo4jRepository<NoteNode, Long> {
      * @param pageable 分页参数
      * @return 笔记节点列表
      */
-    @Query("MATCH (u:User)<-[:AUTHORED_BY]-(n:Note)-[r:MENTIONS_CONCEPT]->(c:Concept) " +
+    @Query(
+        value = "MATCH (u:User)<-[:AUTHORED_BY]-(n:Note)-[r:MENTIONS_CONCEPT]->(c:Concept) " +
            "WHERE u.mysqlId = $userId AND c.name CONTAINS $conceptName " +
-           "RETURN n, r, c ORDER BY r.frequency DESC")
+           "RETURN n, r, c ORDER BY r.frequency DESC " +
+           "SKIP $skip LIMIT $limit",
+        countQuery = "MATCH (u:User)<-[:AUTHORED_BY]-(n:Note)-[r:MENTIONS_CONCEPT]->(c:Concept) " +
+           "WHERE u.mysqlId = $userId AND c.name CONTAINS $conceptName " +
+           "RETURN count(DISTINCT n)"
+    )
     Page<NoteNode> findUserNotesByConceptName(
             @Param("userId") String userId, 
             @Param("conceptName") String conceptName, 

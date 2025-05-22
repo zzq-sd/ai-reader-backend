@@ -4,71 +4,48 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.springframework.data.neo4j.core.schema.*;
+import org.springframework.data.neo4j.core.schema.Id;
+import org.springframework.data.neo4j.core.schema.Node;
+import org.springframework.data.neo4j.core.schema.Property;
+import org.springframework.data.neo4j.core.schema.Relationship;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.springframework.data.neo4j.core.schema.Relationship.Direction.OUTGOING;
+
 /**
- * 知识图谱中的笔记节点
+ * 笔记节点Neo4j实体类
  */
-@Node("Note")
 @Data
+@Node("Note")
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class NoteNode {
-
+    
     @Id
-    @GeneratedValue
-    private Long id;
-
+    private String id; // 自动生成的Neo4j ID
+    
     @Property("mysqlId")
-    private String mysqlId;
-
+    private String mysqlId; // 对应MySQL notes.id
+    
     @Property("title")
-    private String title;
-
+    private String title; // 笔记标题
+    
     @Property("createdAt")
-    private LocalDateTime createdAt;
-
-    @Property("userId")
-    private String userId;
-
-    @Property("aiLastProcessedAt")
-    private LocalDateTime aiLastProcessedAt;
-
-    @Relationship(type = "AUTHORED_BY", direction = Relationship.Direction.OUTGOING)
-    private UserNode user;
-
-    @Relationship(type = "REFERS_TO", direction = Relationship.Direction.OUTGOING)
-    private ArticleNode article;
-
-    @Relationship(type = "MENTIONS_CONCEPT", direction = Relationship.Direction.OUTGOING)
-    private Set<ConceptRelation> conceptRelations = new HashSet<>();
-
-    /**
-     * 笔记与概念间的关系
-     */
-    @RelationshipProperties
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ConceptRelation {
-        
-        @Id
-        @GeneratedValue
-        private Long id;
-        
-        @TargetNode
-        private Concept concept;
-        
-        @Property("frequency")
-        private Integer frequency = 1;
-        
-        @Property("confidence")
-        private Double confidence = 1.0;
-    }
+    private LocalDateTime createdAt; // 创建时间
+    
+    @Relationship(type = "BELONGS_TO", direction = OUTGOING)
+    private UserNode user; // 创建该笔记的用户
+    
+    @Relationship(type = "REFERENCES", direction = OUTGOING)
+    private ArticleNode referencedArticle; // 引用的文章
+    
+    @Relationship(type = "MENTIONS", direction = OUTGOING)
+    private Set<ConceptRelationship> concepts = new HashSet<>(); // 提及的概念
+    
+    @Relationship(type = "TAGGED_WITH", direction = OUTGOING)
+    private Set<TagRelationship> tags = new HashSet<>(); // 标签
 } 

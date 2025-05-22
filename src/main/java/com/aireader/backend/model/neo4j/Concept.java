@@ -8,6 +8,12 @@ import org.springframework.data.neo4j.core.schema.GeneratedValue;
 import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;
 import org.springframework.data.neo4j.core.schema.Property;
+import org.springframework.data.neo4j.core.schema.Relationship;
+
+import java.util.HashSet;
+import java.util.Set;
+
+import static org.springframework.data.neo4j.core.schema.Relationship.Direction.OUTGOING;
 
 /**
  * 知识图谱中的概念节点
@@ -34,6 +40,9 @@ public class Concept {
 
     @Property("weight")
     private Integer weight = 1;
+
+    @Relationship(type = "RELATED_TO", direction = OUTGOING)
+    private Set<ConceptRelationship> relatedConcepts = new HashSet<>();
 
     /**
      * 概念类型枚举
