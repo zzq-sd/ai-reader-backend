@@ -5,9 +5,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.Pattern;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import java.time.LocalDateTime;
 
 /**
@@ -43,7 +44,10 @@ public class RssSourceDTO {
 
     private boolean active;
 
+    @JsonProperty("isPublic")
     private boolean isPublic;
+
+    private Integer fetchInterval;
 
     private String userId;
 
@@ -63,13 +67,15 @@ public class RssSourceDTO {
         }
         
         return RssSourceDTO.builder()
-                .id(rssSource.getId().toString())
+                .id(rssSource.getId())
                 .url(rssSource.getUrl())
                 .name(rssSource.getName())
                 .category(rssSource.getCategory())
                 .description(rssSource.getDescription())
                 .isPublic(rssSource.isPublic())
-                .userId(rssSource.getUser() != null ? rssSource.getUser().getId().toString() : null)
+                .active(rssSource.isActive())
+                .fetchInterval(rssSource.getFetchInterval())
+                .userId(rssSource.getUser() != null ? rssSource.getUser().getId() : null)
                 .fetchStatus(rssSource.getFetchStatus())
                 .errorMessage(rssSource.getErrorMessage())
                 .lastFetchedAt(rssSource.getLastFetchedAt())
@@ -90,6 +96,8 @@ public class RssSourceDTO {
                 .category(this.category)
                 .description(this.description)
                 .isPublic(this.isPublic)
+                .active(this.active)
+                .fetchInterval(this.fetchInterval)
                 .build();
     }
 }

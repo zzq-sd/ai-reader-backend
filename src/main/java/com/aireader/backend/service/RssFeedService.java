@@ -3,6 +3,7 @@ package com.aireader.backend.service;
 import com.aireader.backend.dto.RssSourceDTO;
 import com.aireader.backend.dto.ArticleDTO;
 import com.aireader.backend.model.jpa.RssSource;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 import java.util.Optional;
@@ -72,7 +73,7 @@ public interface RssFeedService {
      * @param size 每页大小
      * @return 文章列表
      */
-    List<ArticleDTO> getArticlesByRssSource(String sourceId, int page, int size);
+    Page<ArticleDTO> getArticlesByRssSource(String sourceId, int page, int size);
     
     /**
      * 获取用户订阅的所有RSS源的最新文章
@@ -115,4 +116,11 @@ public interface RssFeedService {
      * @return RSS源实体
      */
     RssSource convertToEntity(RssSourceDTO rssSourceDTO);
+    
+    /**
+     * 将RSS源添加到抓取队列中，由消息消费者异步处理
+     *
+     * @param sourceId RSS源ID
+     */
+    void scheduleRssFetch(String sourceId);
 } 

@@ -1,10 +1,10 @@
 package com.aireader.backend.model.jpa;
 
+import com.aireader.backend.model.constant.UserRole;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import javax.persistence.*;
+import jakarta.persistence.*;
 
 /**
  * 角色实体类
@@ -20,6 +20,7 @@ public class Role {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @Column(name = "name", length = 20, nullable = false, unique = true)
-    private String name;
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private UserRole name;
 } 

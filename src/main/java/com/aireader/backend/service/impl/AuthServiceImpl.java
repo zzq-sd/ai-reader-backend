@@ -7,15 +7,19 @@ import com.aireader.backend.dto.auth.UserResponseDto;
 import com.aireader.backend.model.jpa.User;
 import com.aireader.backend.security.JwtTokenProvider;
 import com.aireader.backend.service.AuthService;
+import com.aireader.backend.service.CustomUserDetailsService;
 import com.aireader.backend.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+
+import java.util.Collection;
 
 /**
  * 认证服务实现类
@@ -31,6 +35,9 @@ public class AuthServiceImpl implements AuthService {
     
     @Autowired
     private UserService userService;
+    
+    @Autowired
+    private CustomUserDetailsService customUserDetailsService;
     
     @Value("${jwt.access-token-expiration}")
     private long accessTokenExpiration;
@@ -91,11 +98,19 @@ public class AuthServiceImpl implements AuthService {
             throw new RuntimeException("刷新令牌无效或已过期");
         }
         
-        // 从刷新令牌中获取用户名
-        String username = tokenProvider.getUsernameFromToken(refreshToken);
-        
-        // 重新生成访问令牌
-        String accessToken = tokenProvider.generateTokenFromUsername(username);
+        // 从刷新令牌中获取用户ID (subject) 和 实际用户名 (custom claim)
+        String userId = tokenProvider.getUserIdFromToken(refreshToken);
+        String actualUsername = tokenProvider.getActualUsernameFromToken(refreshToken);
+
+        // 为了生成包含权限的新access token，我们需要用户的权限信息
+        com.aireader.backend.model.jpa.User userEntity = userService.findById(userId)
+            .orElseThrow(() -> new RuntimeException("刷新令牌时找不到用户ID: " + userId));
+        Collection<? extends GrantedAuthority> authorities = userEntity.getRoles().stream()
+            .map(role -> new org.springframework.security.core.authority.SimpleGrantedAuthority(role.toString()))
+            .collect(java.util.stream.Collectors.toList());
+
+        // 使用新的方法生成访问令牌
+        String accessToken = tokenProvider.generateTokenFromUserIdAndUsername(userId, actualUsername, authorities);
         
         // 返回新的JWT认证响应
         return JwtAuthenticationResponseDto.builder()
@@ -113,22 +128,22 @@ public class AuthServiceImpl implements AuthService {
      */
     @Override
     public UserResponseDto getCurrentUser() {
-        // 获取当前认证信息
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        
-        if (authentication == null || !authentication.isAuthenticated()) {
-            throw new RuntimeException("未找到认证信息");
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            throw new RuntimeException("未找到有效认证信息或用户未登录");
         }
         
-        // 获取用户详情
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        String username = userDetails.getUsername();
+        Object principal = authentication.getPrincipal();
+        String userId;
+        if (principal instanceof UserDetails) {
+            userId = ((UserDetails) principal).getUsername(); // 这现在是用户ID
+        } else {
+            userId = principal.toString();
+        }
         
-        // 查找用户
-        User user = userService.findByUsernameOrEmail(username)
-                .orElseThrow(() -> new RuntimeException("未找到当前用户"));
+        com.aireader.backend.model.jpa.User user = userService.findById(userId) 
+                .orElseThrow(() -> new RuntimeException("未找到当前用户 (ID: " + userId + ")"));
         
-        // 返回用户响应DTO
         return userService.convertToDto(user);
     }
     

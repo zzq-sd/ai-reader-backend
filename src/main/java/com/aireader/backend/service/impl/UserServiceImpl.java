@@ -13,7 +13,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -93,7 +95,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional(readOnly = true)
     public Optional<User> findById(String id) {
-        return userRepository.findById(UUID.fromString(id));
+        return userRepository.findById(id);
     }
     
     /**
@@ -118,12 +120,12 @@ public class UserServiceImpl implements UserService {
     @Override
     public UserResponseDto convertToDto(User user) {
         return UserResponseDto.builder()
-                .id(user.getId().toString())
+                .id(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .roles(user.getRoles().stream()
-                        .map(Role::getName)
+                        .map(role -> role.getName().toString())
                         .collect(Collectors.toList()))
                 .enabled(user.isEnabled())
                 .createdAt(user.getCreatedAt())
@@ -140,7 +142,7 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponseDto updateUser(String id, UserRegistrationRequestDto userDetails) {
-        User user = userRepository.findById(UUID.fromString(id))
+        User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
         
         // 如果要更改用户名，检查是否已存在
@@ -183,8 +185,8 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public boolean deleteUser(String id) {
-        if (userRepository.existsById(UUID.fromString(id))) {
-            userRepository.deleteById(UUID.fromString(id));
+        if (userRepository.existsById(id)) {
+            userRepository.deleteById(id);
             return true;
         }
         return false;

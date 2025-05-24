@@ -5,18 +5,19 @@ import com.aireader.backend.model.jpa.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 /**
  * RSS源信息仓库接口
  */
 @Repository
-public interface RssSourceRepository extends JpaRepository<RssSource, UUID> {
+public interface RssSourceRepository extends JpaRepository<RssSource, String> {
     
     /**
      * 根据URL查找RSS源
@@ -49,7 +50,8 @@ public interface RssSourceRepository extends JpaRepository<RssSource, UUID> {
      * @param userId 用户ID
      * @return RSS源列表
      */
-    List<RssSource> findByUserId(UUID userId);
+    @Query("SELECT r FROM RssSource r WHERE r.user.id = :userId")
+    List<RssSource> findByUserId(@Param("userId") String userId);
     
     /**
      * 查找所有公共RSS源

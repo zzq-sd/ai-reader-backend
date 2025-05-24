@@ -23,7 +23,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
+import java.util.HashSet;
 import java.util.stream.Collectors;
 
 /**
@@ -493,12 +496,7 @@ public class NoteServiceImpl implements NoteService {
      * @return 用户实体
      */
     private User getUserById(String userId) {
-        try {
-            UUID uuid = UUID.fromString(userId);
-            return userRepository.findById(uuid)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "未找到用户"));
-        } catch (IllegalArgumentException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "用户ID格式无效");
-        }
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "未找到用户: " + userId));
     }
 } 

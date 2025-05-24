@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -69,8 +69,8 @@ public class UserArticleInteraction {
     @AllArgsConstructor
     public static class UserArticleInteractionId implements Serializable {
         
-        @Column(name = "user_id", columnDefinition = "BINARY(16)")
-        private UUID userId;
+        @Column(name = "user_id", columnDefinition = "CHAR(36)")
+        private String userId;
         
         @Column(name = "article_metadata_id", columnDefinition = "CHAR(36)")
         private String articleMetadataId;

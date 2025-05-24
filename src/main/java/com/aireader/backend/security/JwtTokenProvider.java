@@ -1,5 +1,6 @@
 package com.aireader.backend.security;
 
+import com.aireader.backend.model.security.CustomUserDetails;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import io.jsonwebtoken.security.SignatureException;
@@ -9,16 +10,15 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Date;
+import java.util.List;
 import java.util.stream.Collectors;
 
 /**
@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
 public class JwtTokenProvider {
 
     @Value("${jwt.secret}")
-    private String secretKey;
+    private String secretKeyString;
 
     @Value("${jwt.access-token-expiration}")
     private long accessTokenExpiration;
@@ -41,21 +41,20 @@ public class JwtTokenProvider {
 
     @PostConstruct
     protected void init() {
-        // 基于配置的密钥创建HMAC SHA-256密钥
-        key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
+        key = Keys.hmacShaKeyFor(secretKeyString.getBytes(StandardCharsets.UTF_8));
     }
 
     /**
      * 创建访问令牌
      * 
-     * @param userId 用户ID
-     * @param username 用户名
+     * @param userId 用户ID (UUID)
+     * @param actualUsername 用户的实际登录名
      * @param roles 角色列表
      * @return JWT令牌
      */
-    public String createAccessToken(String userId, String username, Collection<? extends GrantedAuthority> roles) {
+    public String createAccessToken(String userId, String actualUsername, Collection<? extends GrantedAuthority> roles) {
         Claims claims = Jwts.claims().setSubject(userId);
-        claims.put("username", username);
+        claims.put("username", actualUsername);
         claims.put("roles", roles.stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toList()));
@@ -74,7 +73,7 @@ public class JwtTokenProvider {
     /**
      * 创建刷新令牌
      * 
-     * @param userId 用户ID
+     * @param userId 用户ID (UUID)
      * @return 刷新令牌
      */
     public String createRefreshToken(String userId) {
@@ -103,14 +102,14 @@ public class JwtTokenProvider {
                 .getBody();
 
         String userId = claims.getSubject();
-        String username = claims.get("username", String.class);
+        String actualUsername = claims.get("username", String.class);
         
-        Collection<? extends GrantedAuthority> authorities =
-                Arrays.stream(claims.get("roles", String[].class))
+        List<String> rolesList = claims.get("roles", List.class);
+        Collection<? extends GrantedAuthority> authorities = rolesList.stream()
                         .map(SimpleGrantedAuthority::new)
                         .collect(Collectors.toList());
 
-        User principal = new User(username, "", authorities);
+        UserDetails principal = new CustomUserDetails(userId, actualUsername, "", authorities.stream().anyMatch(a -> a.getAuthority().equals("ROLE_ANONYMOUS")), true, true, true, authorities);
 
         return new UsernamePasswordAuthenticationToken(principal, token, authorities);
     }
@@ -126,21 +125,21 @@ public class JwtTokenProvider {
             Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
             return true;
         } catch (SignatureException ex) {
-            log.error("无效的JWT签名");
+            log.error("无效的JWT签名: {}", ex.getMessage());
         } catch (MalformedJwtException ex) {
-            log.error("无效的JWT令牌");
+            log.error("无效的JWT令牌: {}", ex.getMessage());
         } catch (ExpiredJwtException ex) {
-            log.error("过期的JWT令牌");
+            log.error("过期的JWT令牌: {}", ex.getMessage());
         } catch (UnsupportedJwtException ex) {
-            log.error("不支持的JWT令牌");
+            log.error("不支持的JWT令牌: {}", ex.getMessage());
         } catch (IllegalArgumentException ex) {
-            log.error("JWT声明为空");
+            log.error("JWT声明为空: {}", ex.getMessage());
         }
         return false;
     }
 
     /**
-     * 从令牌中获取用户ID
+     * 从令牌中获取用户ID (Subject)
      * 
      * @param token JWT令牌
      * @return 用户ID
@@ -155,12 +154,12 @@ public class JwtTokenProvider {
     }
     
     /**
-     * 从令牌中获取用户名
+     * 从令牌中获取实际登录用户名 (Custom "username" claim)
      * 
      * @param token JWT令牌
-     * @return 用户名
+     * @return 实际登录用户名
      */
-    public String getUsernameFromToken(String token) {
+    public String getActualUsernameFromToken(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
@@ -170,24 +169,31 @@ public class JwtTokenProvider {
     }
     
     /**
-     * 根据认证信息生成令牌
+     * 根据认证信息生成令牌 (主要由登录成功后调用)
      * 
-     * @param authentication 认证信息
+     * @param authentication 认证信息 (principal 应为 CustomUserDetails)
      * @return JWT访问令牌
      */
     public String generateToken(Authentication authentication) {
-        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        Object principal = authentication.getPrincipal();
+        if (!(principal instanceof CustomUserDetails)) {
+            log.warn("Authentication principal is not CustomUserDetails. Falling back to getUsername() for userId, which might be incorrect if not user ID.");
+            UserDetails userDetails = (UserDetails) principal;
+            return createAccessToken(userDetails.getUsername(), userDetails.getUsername(), userDetails.getAuthorities());
+        }
+        
+        CustomUserDetails customUserDetails = (CustomUserDetails) principal;
         return createAccessToken(
-                userDetails.getUsername(), // 这里使用用户名作为ID，实际应用中可能需要从用户服务获取真实的用户ID
-                userDetails.getUsername(),
-                userDetails.getAuthorities()
+                customUserDetails.getId(),
+                customUserDetails.getActualUsername(),
+                customUserDetails.getAuthorities()
         );
     }
     
     /**
-     * 根据认证信息生成刷新令牌
+     * 根据认证信息生成刷新令牌 (主要由登录成功后调用)
      * 
-     * @param authentication 认证信息
+     * @param authentication 认证信息 (principal 的 getUsername() 应返回 userId)
      * @return JWT刷新令牌
      */
     public String generateRefreshToken(Authentication authentication) {
@@ -196,21 +202,15 @@ public class JwtTokenProvider {
     }
     
     /**
-     * 根据用户名生成令牌
+     * 根据用户ID和实际用户名生成访问令牌。
+     * 用于刷新令牌等场景，其中我们有用户ID和用户名，但不一定有完整的Authentication对象。
      * 
-     * @param username 用户名
+     * @param userId 用户的唯一ID (UUID)
+     * @param actualUsername 用户的实际登录名
+     * @param authorities 用户的权限
      * @return JWT访问令牌
      */
-    public String generateTokenFromUsername(String username) {
-        Date now = new Date();
-        Date validity = new Date(now.getTime() + accessTokenExpiration);
-        
-        return Jwts.builder()
-                .setSubject(username)
-                .claim("username", username)
-                .setIssuedAt(now)
-                .setExpiration(validity)
-                .signWith(key)
-                .compact();
+    public String generateTokenFromUserIdAndUsername(String userId, String actualUsername, Collection<? extends GrantedAuthority> authorities) {
+        return createAccessToken(userId, actualUsername, authorities);
     }
 } 

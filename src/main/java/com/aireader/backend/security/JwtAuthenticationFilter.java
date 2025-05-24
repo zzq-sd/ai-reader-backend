@@ -7,10 +7,10 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
-import javax.servlet.FilterChain;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 /**
@@ -41,12 +41,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         try {
             String jwt = getJwtFromRequest(request);
-            if (StringUtils.hasText(jwt) && jwtTokenProvider.validateToken(jwt)) {
-                Authentication authentication = jwtTokenProvider.getAuthentication(jwt);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+            log.debug("JWT from request: {}", jwt);
+            if (StringUtils.hasText(jwt)) {
+                if (jwtTokenProvider.validateToken(jwt)) {
+                    log.debug("JWT token is valid.");
+                    Authentication authentication = jwtTokenProvider.getAuthentication(jwt);
+                    log.debug("Authentication object created: {}", authentication);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    log.debug("Authentication set in SecurityContext.");
+                } else {
+                    log.warn("JWT token validation failed.");
+                }
+            } else {
+                log.debug("No JWT token found in request.");
             }
         } catch (Exception ex) {
-            log.error("无法设置用户认证信息", ex);
+            log.error("Could not set user authentication in security context", ex);
         }
 
         filterChain.doFilter(request, response);

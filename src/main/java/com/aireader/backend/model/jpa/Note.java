@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.GenericGenerator;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
@@ -24,7 +24,7 @@ public class Note {
     
     @Id
     @GeneratedValue(generator = "uuid2")
-    @GenericGenerator(name = "uuid2", strategy = "uuid2")
+    @GenericGenerator(name = "uuid2", strategy = "org.hibernate.id.UUIDGenerator")
     @Column(name = "id", columnDefinition = "CHAR(36)")
     private String id;
     
@@ -36,11 +36,29 @@ public class Note {
     @JoinColumn(name = "article_metadata_id")
     private ArticleMetadata articleMetadata;
     
+    /**
+     * 获取用户ID
+     *
+     * @return 用户ID
+     */
+    public String getUserId() {
+        return this.user != null ? this.user.getId() : null;
+    }
+    
     @Column(name = "title", length = 512)
     private String title;
     
     @Column(name = "content_rich_text", columnDefinition = "TEXT", nullable = false)
     private String contentRichText;
+    
+    /**
+     * 获取笔记内容
+     *
+     * @return 笔记内容
+     */
+    public String getContent() {
+        return this.contentRichText;
+    }
     
     @Column(name = "ai_processing_status", length = 50, nullable = false)
     private String aiProcessingStatus = "PENDING";

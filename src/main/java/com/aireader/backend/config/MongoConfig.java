@@ -11,12 +11,14 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.bson.Document;
+import org.springframework.data.mongodb.config.EnableMongoAuditing;
 
 /**
  * MongoDB配置类
  * 用于配置MongoDB的索引等设置
  */
 @Configuration
+@EnableMongoAuditing
 public class MongoConfig {
     
     @Autowired

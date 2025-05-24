@@ -125,7 +125,8 @@ public interface NoteRepository extends JpaRepository<Note, String> {
      * @param userId 用户ID
      * @return 笔记Optional包装
      */
-    Optional<Note> findByIdAndUserId(String noteId, String userId);
+    @Query("SELECT n FROM Note n WHERE n.id = :noteId AND n.user.id = :userId")
+    Optional<Note> findByIdAndUserId(@Param("noteId") String noteId, @Param("userId") String userId);
     
     /**
      * 查询特定用户特定时间之后创建的笔记

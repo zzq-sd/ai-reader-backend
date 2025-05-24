@@ -1,5 +1,6 @@
 package com.aireader.backend.service.impl;
 
+import com.aireader.backend.config.RabbitMQConfig;
 import com.aireader.backend.dto.ArticleDTO;
 import com.aireader.backend.dto.RssSourceDTO;
 import com.aireader.backend.model.jpa.ArticleMetadata;
@@ -13,12 +14,16 @@ import com.aireader.backend.service.RssFeedService;
 import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,22 +36,30 @@ import java.util.stream.Collectors;
  * RSS源管理服务实现类
  */
 @Service
+@Slf4j
 public class RssFeedServiceImpl implements RssFeedService {
 
-    @Autowired
-    private RssSourceRepository rssSourceRepository;
-    
-    @Autowired
-    private UserRepository userRepository;
-    
-    @Autowired
-    private ArticleMetadataRepository articleMetadataRepository;
-    
-    @Autowired
-    private ArticleFetchService articleFetchService;
+    private final RssSourceRepository rssSourceRepository;
+    private final UserRepository userRepository;
+    private final ArticleMetadataRepository articleMetadataRepository;
+    private final ArticleFetchService articleFetchService;
+    private final RabbitTemplate rabbitTemplate;
     
     @Value("${rss.fetch.timeout}")
     private int fetchTimeout;
+    
+    @Autowired
+    public RssFeedServiceImpl(RssSourceRepository rssSourceRepository,
+                             UserRepository userRepository,
+                             ArticleMetadataRepository articleMetadataRepository,
+                             ArticleFetchService articleFetchService,
+                             RabbitTemplate rabbitTemplate) {
+        this.rssSourceRepository = rssSourceRepository;
+        this.userRepository = userRepository;
+        this.articleMetadataRepository = articleMetadataRepository;
+        this.articleFetchService = articleFetchService;
+        this.rabbitTemplate = rabbitTemplate;
+    }
     
     /**
      * 添加新的RSS源
@@ -63,21 +76,21 @@ public class RssFeedServiceImpl implements RssFeedService {
             throw new RuntimeException("无效的RSS源URL");
         }
         
-        // 查找用户
-        User user = userRepository.findById(UUID.fromString(userId))
+        // 查找用户 (userId 是真正的用户ID/UUID)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
-        
+
         // 检查是否已存在相同URL的RSS源
         Optional<RssSource> existingSource = rssSourceRepository.findByUrl(rssSourceDTO.getUrl());
         
         if (existingSource.isPresent()) {
             // 如果已存在，检查是否是公共源或用户自己的源
             RssSource source = existingSource.get();
-            if (source.isPublic() || source.getUser().getId().equals(UUID.fromString(userId))) {
+            if (source.isPublic() || (source.getUser() != null && source.getUser().getId().equals(user.getId()))) {
                 return convertToDto(source);
             }
         }
-        
+
         // 创建新的RSS源
         RssSource rssSource = new RssSource();
         rssSource.setName(rssSourceDTO.getName());
@@ -94,7 +107,7 @@ public class RssFeedServiceImpl implements RssFeedService {
         RssSource savedSource = rssSourceRepository.save(rssSource);
         
         // 触发文章抓取（异步）
-        new Thread(() -> articleFetchService.fetchArticlesFromSource(savedSource)).start();
+        scheduleRssFetch(savedSource.getId());
         
         return convertToDto(savedSource);
     }
@@ -108,7 +121,11 @@ public class RssFeedServiceImpl implements RssFeedService {
     @Override
     @Transactional(readOnly = true)
     public List<RssSourceDTO> getUserRssSources(String userId) {
-        List<RssSource> userSources = rssSourceRepository.findByUserId(UUID.fromString(userId));
+        // 查找用户 (userId 是真正的用户ID/UUID)
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在: " + userId));
+
+        List<RssSource> userSources = rssSourceRepository.findByUserId(user.getId()); // 使用 user.getId() (UUID)
         List<RssSource> publicSources = rssSourceRepository.findByIsPublicTrue();
         
         // 合并用户自己的源和公共源，去重
@@ -142,7 +159,7 @@ public class RssFeedServiceImpl implements RssFeedService {
     @Override
     @Transactional(readOnly = true)
     public Optional<RssSourceDTO> getRssSourceById(String sourceId) {
-        return rssSourceRepository.findById(UUID.fromString(sourceId))
+        return rssSourceRepository.findById(sourceId)
                 .map(this::convertToDto);
     }
     
@@ -157,16 +174,19 @@ public class RssFeedServiceImpl implements RssFeedService {
     @Override
     @Transactional
     public RssSourceDTO updateRssSource(String sourceId, RssSourceDTO rssSourceDTO, String userId) {
-        RssSource rssSource = rssSourceRepository.findById(UUID.fromString(sourceId))
+        RssSource rssSource = rssSourceRepository.findById(sourceId)
                 .orElseThrow(() -> new RuntimeException("RSS源不存在"));
         
-        // 检查权限
-        if (!rssSource.getUser().getId().equals(UUID.fromString(userId))) {
+        // 检查权限 (userId 是真正的用户ID/UUID)
+        if (rssSource.getUser() == null || !rssSource.getUser().getId().equals(userId)) {
             throw new RuntimeException("无权修改此RSS源");
         }
         
+        // 保存原始URL，用于后续比较
+        String originalUrl = rssSource.getUrl();
+        
         // 如果URL发生变化，需要验证新URL
-        if (!rssSource.getUrl().equals(rssSourceDTO.getUrl()) && !validateRssUrl(rssSourceDTO.getUrl())) {
+        if (!originalUrl.equals(rssSourceDTO.getUrl()) && !validateRssUrl(rssSourceDTO.getUrl())) {
             throw new RuntimeException("无效的RSS源URL");
         }
         
@@ -176,13 +196,14 @@ public class RssFeedServiceImpl implements RssFeedService {
         rssSource.setDescription(rssSourceDTO.getDescription());
         rssSource.setCategory(rssSourceDTO.getCategory());
         rssSource.setPublic(rssSourceDTO.isPublic());
+        rssSource.setActive(rssSourceDTO.isActive());
         rssSource.setUpdatedAt(LocalDateTime.now());
         
         // 保存更新后的RSS源
         RssSource updatedSource = rssSourceRepository.save(rssSource);
         
         // 如果URL发生变化，触发文章抓取
-        if (!rssSource.getUrl().equals(rssSourceDTO.getUrl())) {
+        if (!originalUrl.equals(rssSourceDTO.getUrl())) {
             new Thread(() -> articleFetchService.fetchArticlesFromSource(updatedSource)).start();
         }
         
@@ -199,11 +220,11 @@ public class RssFeedServiceImpl implements RssFeedService {
     @Override
     @Transactional
     public boolean deleteRssSource(String sourceId, String userId) {
-        RssSource rssSource = rssSourceRepository.findById(UUID.fromString(sourceId))
+        RssSource rssSource = rssSourceRepository.findById(sourceId)
                 .orElseThrow(() -> new RuntimeException("RSS源不存在"));
         
-        // 检查权限
-        if (!rssSource.getUser().getId().equals(UUID.fromString(userId))) {
+        // 检查权限 (userId 是真正的用户ID/UUID)
+        if (rssSource.getUser() == null || !rssSource.getUser().getId().equals(userId)) {
             throw new RuntimeException("无权删除此RSS源");
         }
         
@@ -219,25 +240,28 @@ public class RssFeedServiceImpl implements RssFeedService {
      * @param sourceId RSS源ID
      * @param page 页码
      * @param size 每页大小
-     * @return 文章列表
+     * @return 分页的文章列表
      */
     @Override
     @Transactional(readOnly = true)
-    public List<ArticleDTO> getArticlesByRssSource(String sourceId, int page, int size) {
+    public Page<ArticleDTO> getArticlesByRssSource(String sourceId, int page, int size) {
         // 检查RSS源是否存在
-        if (!rssSourceRepository.existsById(UUID.fromString(sourceId))) {
+        if (!rssSourceRepository.existsById(sourceId)) {
             throw new RuntimeException("RSS源不存在");
         }
         
         // 分页查询文章
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "publishedAt"));
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "publicationDate"));
         Page<ArticleMetadata> articles = articleMetadataRepository.findByRssSourceId(
-                UUID.fromString(sourceId), pageable);
+                sourceId, pageable);
         
-        // 转换为DTO
-        return articles.getContent().stream()
+        // 转换为DTO并保持分页信息
+        List<ArticleDTO> articleDTOs = articles.getContent().stream()
                 .map(this::convertToArticleDto)
                 .collect(Collectors.toList());
+        
+        // 创建包含分页信息的Page对象
+        return new PageImpl<>(articleDTOs, pageable, articles.getTotalElements());
     }
     
     /**
@@ -252,8 +276,8 @@ public class RssFeedServiceImpl implements RssFeedService {
     @Transactional(readOnly = true)
     public List<ArticleDTO> getLatestArticlesForUser(String userId, int page, int size) {
         // 获取用户订阅的RSS源ID列表
-        List<UUID> sourceIds = getUserRssSources(userId).stream()
-                .map(dto -> UUID.fromString(dto.getId()))
+        List<String> sourceIds = getUserRssSources(userId).stream()
+                .map(dto -> dto.getId())
                 .collect(Collectors.toList());
         
         if (sourceIds.isEmpty()) {
@@ -261,7 +285,7 @@ public class RssFeedServiceImpl implements RssFeedService {
         }
         
         // 分页查询文章
-        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "publishedAt"));
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "publicationDate"));
         Page<ArticleMetadata> articles = articleMetadataRepository.findByRssSourceIdIn(sourceIds, pageable);
         
         // 转换为DTO
@@ -279,7 +303,7 @@ public class RssFeedServiceImpl implements RssFeedService {
     @Override
     @Transactional
     public int fetchRssSource(String sourceId) {
-        RssSource rssSource = rssSourceRepository.findById(UUID.fromString(sourceId))
+        RssSource rssSource = rssSourceRepository.findById(sourceId)
                 .orElseThrow(() -> new RuntimeException("RSS源不存在"));
         
         List<ArticleMetadata> fetchedArticles = articleFetchService.fetchArticlesFromSource(rssSource);
@@ -307,6 +331,7 @@ public class RssFeedServiceImpl implements RssFeedService {
             // 如果能成功解析，则认为URL有效
             return feed != null && feed.getEntries() != null;
         } catch (Exception e) {
+            log.warn("RSS URL验证失败: {}, 错误: {}", url, e.getMessage());
             return false;
         }
     }
@@ -326,6 +351,7 @@ public class RssFeedServiceImpl implements RssFeedService {
         dto.setDescription(rssSource.getDescription());
         dto.setCategory(rssSource.getCategory());
         dto.setPublic(rssSource.isPublic());
+        dto.setActive(rssSource.isActive());
         dto.setUserId(rssSource.getUser().getId().toString());
         dto.setCreatedAt(rssSource.getCreatedAt());
         dto.setUpdatedAt(rssSource.getUpdatedAt());
@@ -346,7 +372,7 @@ public class RssFeedServiceImpl implements RssFeedService {
         
         // 如果有ID，则设置ID
         if (rssSourceDTO.getId() != null && !rssSourceDTO.getId().isEmpty()) {
-            entity.setId(UUID.fromString(rssSourceDTO.getId()));
+            entity.setId(rssSourceDTO.getId());
         }
         
         entity.setName(rssSourceDTO.getName());
@@ -373,16 +399,36 @@ public class RssFeedServiceImpl implements RssFeedService {
      */
     private ArticleDTO convertToArticleDto(ArticleMetadata articleMetadata) {
         ArticleDTO dto = new ArticleDTO();
-        dto.setId(articleMetadata.getId().toString());
+        dto.setId(articleMetadata.getId());
         dto.setTitle(articleMetadata.getTitle());
         dto.setAuthor(articleMetadata.getAuthor());
-        dto.setSummary(articleMetadata.getSummary());
-        dto.setUrl(articleMetadata.getUrl());
-        dto.setImageUrl(articleMetadata.getImageUrl());
-        dto.setPublishedAt(articleMetadata.getPublishedAt());
+        dto.setSummary(articleMetadata.getSummaryText());
+        dto.setOriginalUrl(articleMetadata.getLinkToOriginal());
+        dto.setImageUrl(null); // ArticleMetadata 类中没有 imageUrl 字段
+        dto.setPublicationDate(articleMetadata.getPublicationDate());
         dto.setRssSourceId(articleMetadata.getRssSource().getId().toString());
         dto.setRssSourceName(articleMetadata.getRssSource().getName());
         
         return dto;
+    }
+
+    /**
+     * 异步执行RSS抓取
+     * @param sourceId RSS源ID
+     */
+    @Override
+    @Async("rssFetchExecutor")
+    public void scheduleRssFetch(String sourceId) {
+        log.info("异步任务：开始抓取RSS源，ID: {}", sourceId);
+        try {
+            Optional<RssSource> sourceOpt = rssSourceRepository.findById(sourceId);
+            if (sourceOpt.isPresent()) {
+                articleFetchService.fetchArticlesFromSource(sourceOpt.get());
+            } else {
+                log.error("RSS源不存在，ID: {}", sourceId);
+            }
+        } catch (Exception e) {
+            log.error("RSS抓取任务执行异常，源ID: " + sourceId, e);
+        }
     }
 } 

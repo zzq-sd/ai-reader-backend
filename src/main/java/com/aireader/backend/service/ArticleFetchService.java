@@ -1,9 +1,11 @@
 package com.aireader.backend.service;
 
+import com.aireader.backend.dto.ArticleDTO;
 import com.aireader.backend.model.jpa.ArticleMetadata;
 import com.aireader.backend.model.jpa.RssSource;
 
 import java.util.List;
+// import java.util.UUID; // To be removed
 
 /**
  * 文章抓取服务接口
@@ -58,4 +60,20 @@ public interface ArticleFetchService {
      * @param articleId 文章ID
      */
     void queueArticleForProcessing(String articleId);
+    
+    /**
+     * 通过RSS源ID抓取文章
+     * 
+     * @param sourceId RSS源ID
+     * @return 抓取的文章数量
+     */
+    int fetchArticlesFromSourceById(String sourceId);
+    
+    /**
+     * 根据ID获取文章详情
+     * 
+     * @param articleId 文章ID
+     * @return 文章DTO
+     */
+    ArticleDTO getArticleById(String articleId);
 } 

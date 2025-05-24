@@ -6,8 +6,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.GenericGenerator;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 文章元数据实体类
@@ -24,7 +26,7 @@ public class ArticleMetadata {
     
     @Id
     @GeneratedValue(generator = "uuid2")
-    @GenericGenerator(name = "uuid2", strategy = "uuid2")
+    @GenericGenerator(name = "uuid2", strategy = "org.hibernate.id.UUIDGenerator")
     @Column(name = "id", columnDefinition = "CHAR(36)")
     private String id;
     
@@ -47,10 +49,55 @@ public class ArticleMetadata {
     @Column(name = "author", length = 255)
     private String author;
     
+    /**
+     * 文章阅读时间（分钟）
+     */
+    @Column(name = "reading_time_minutes")
+    private Integer readingTimeMinutes;
+    
+    /**
+     * 文章分类
+     */
+    @Column(name = "category", length = 100)
+    private String category;
+    
+    /**
+     * 获取文章发布日期
+     * @return 发布日期
+     */
+    public LocalDateTime getPublishDate() {
+        return this.publicationDate;
+    }
+    
+    /**
+     * 获取RSS源ID
+     * @return RSS源ID
+     */
+    public String getRssSourceId() {
+        return this.rssSource != null ? this.rssSource.getId() : null;
+    }
+    
+    /**
+     * 获取文章摘要
+     * @return 文章摘要
+     */
+    public String getSummary() {
+        return this.summaryText;
+    }
+    
+    /**
+     * 设置文章摘要
+     * @param summary 文章摘要
+     */
+    public void setSummary(String summary) {
+        this.summaryText = summary;
+    }
+    
     @Column(name = "mongodb_content_id", length = 24, unique = true)
     private String mongodbContentId;
     
     @Column(name = "ai_processing_status", length = 50, nullable = false)
+    @Builder.Default
     private String aiProcessingStatus = "PENDING";
     
     @Column(name = "created_at", nullable = false, updatable = false)

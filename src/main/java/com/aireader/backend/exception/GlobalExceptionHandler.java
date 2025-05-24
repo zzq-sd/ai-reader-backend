@@ -1,158 +1,144 @@
 package com.aireader.backend.exception;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.core.AuthenticationException;
-import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.client.ResourceAccessException;
 
-import java.util.Date;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
  * 全局异常处理器
+ * 统一处理各类异常，返回一致的错误响应格式
  */
-@RestControllerAdvice
+@ControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
 
     /**
-     * 处理所有API异常
+     * 处理业务异常
+     * 
+     * @param ex 业务异常
+     * @return 响应实体
      */
-    @ExceptionHandler(APIException.class)
-    public ResponseEntity<ErrorResponse> handleAPIException(APIException ex, WebRequest request) {
-        log.error("API异常: {}", ex.getMessage(), ex);
-        
-        ErrorResponse errorResponse = new ErrorResponse(
-                new Date(),
-                ex.getStatus().value(),
-                ex.getStatus().getReasonPhrase(),
-                ex.getMessage(),
-                request.getDescription(false));
-        
-        return new ResponseEntity<>(errorResponse, ex.getStatus());
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<Map<String, Object>> handleBusinessException(BusinessException ex) {
+        log.error("业务异常: {}", ex.getMessage(), ex);
+        return buildErrorResponse(ex.getMessage(), ex.getErrorCode(), HttpStatus.BAD_REQUEST);
     }
-
+    
+    /**
+     * 处理数据库异常
+     * 
+     * @param ex 数据库异常
+     * @return 响应实体
+     */
+    @ExceptionHandler(DataAccessException.class)
+    public ResponseEntity<Map<String, Object>> handleDatabaseException(DataAccessException ex) {
+        log.error("数据库访问异常: {}", ex.getMessage(), ex);
+        return buildErrorResponse("数据库操作失败，请稍后重试", "DB_ERROR", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+    
     /**
      * 处理认证异常
+     * 
+     * @param ex 认证异常
+     * @return 响应实体
      */
-    @ExceptionHandler({AuthenticationException.class, BadCredentialsException.class})
-    public ResponseEntity<ErrorResponse> handleAuthenticationException(Exception ex, WebRequest request) {
-        log.error("认证异常: {}", ex.getMessage(), ex);
-        
-        ErrorResponse errorResponse = new ErrorResponse(
-                new Date(),
-                HttpStatus.UNAUTHORIZED.value(),
-                HttpStatus.UNAUTHORIZED.getReasonPhrase(),
-                ex.getMessage(),
-                request.getDescription(false));
-        
-        return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<Map<String, Object>> handleAuthenticationException(BadCredentialsException ex) {
+        log.error("认证异常: {}", ex.getMessage());
+        return buildErrorResponse("用户名或密码错误", "AUTH_ERROR", HttpStatus.UNAUTHORIZED);
     }
-
+    
     /**
      * 处理授权异常
+     * 
+     * @param ex 授权异常
+     * @return 响应实体
      */
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<ErrorResponse> handleAccessDeniedException(AccessDeniedException ex, WebRequest request) {
-        log.error("授权异常: {}", ex.getMessage(), ex);
-        
-        ErrorResponse errorResponse = new ErrorResponse(
-                new Date(),
-                HttpStatus.FORBIDDEN.value(),
-                HttpStatus.FORBIDDEN.getReasonPhrase(),
-                ex.getMessage(),
-                request.getDescription(false));
-        
-        return new ResponseEntity<>(errorResponse, HttpStatus.FORBIDDEN);
+    public ResponseEntity<Map<String, Object>> handleAccessDeniedException(AccessDeniedException ex) {
+        log.error("授权异常: {}", ex.getMessage());
+        return buildErrorResponse("无权访问此资源", "ACCESS_DENIED", HttpStatus.FORBIDDEN);
     }
-
+    
     /**
-     * 处理参数校验异常
+     * 处理参数验证异常
+     * 
+     * @param ex 参数验证异常
+     * @return 响应实体
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Object> handleValidationExceptions(MethodArgumentNotValidException ex, WebRequest request) {
-        log.error("参数校验异常: {}", ex.getMessage(), ex);
+    public ResponseEntity<Map<String, Object>> handleValidationException(MethodArgumentNotValidException ex) {
+        log.error("参数验证异常: {}", ex.getMessage());
+        String errorMessage = ex.getBindingResult().getFieldErrors().stream()
+                .map(error -> error.getField() + ": " + error.getDefaultMessage())
+                .reduce((error1, error2) -> error1 + "; " + error2)
+                .orElse("参数验证失败");
         
-        Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getAllErrors().forEach(error -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
-        });
-        
-        ValidationErrorResponse errorResponse = new ValidationErrorResponse(
-                new Date(),
-                HttpStatus.BAD_REQUEST.value(),
-                HttpStatus.BAD_REQUEST.getReasonPhrase(),
-                "请求参数验证失败",
-                request.getDescription(false),
-                errors);
-        
-        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+        return buildErrorResponse(errorMessage, "VALIDATION_ERROR", HttpStatus.BAD_REQUEST);
     }
-
+    
+    /**
+     * 处理IO异常
+     * 
+     * @param ex IO异常
+     * @return 响应实体
+     */
+    @ExceptionHandler(IOException.class)
+    public ResponseEntity<Map<String, Object>> handleIOException(IOException ex) {
+        log.error("IO异常: {}", ex.getMessage(), ex);
+        return buildErrorResponse("读写操作失败", "IO_ERROR", HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+    
+    /**
+     * 处理资源访问异常（网络相关）
+     * 
+     * @param ex 资源访问异常
+     * @return 响应实体
+     */
+    @ExceptionHandler(ResourceAccessException.class)
+    public ResponseEntity<Map<String, Object>> handleResourceAccessException(ResourceAccessException ex) {
+        log.error("资源访问异常: {}", ex.getMessage(), ex);
+        return buildErrorResponse("网络或外部资源访问失败", "RESOURCE_ACCESS_ERROR", HttpStatus.SERVICE_UNAVAILABLE);
+    }
+    
     /**
      * 处理所有未捕获的异常
+     * 
+     * @param ex 异常
+     * @return 响应实体
      */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, WebRequest request) {
+    public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
         log.error("未处理的异常: {}", ex.getMessage(), ex);
-        
-        ErrorResponse errorResponse = new ErrorResponse(
-                new Date(),
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(),
-                "服务器内部错误，请稍后再试",
-                request.getDescription(false));
-        
-        return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
+        return buildErrorResponse("服务器内部错误", "INTERNAL_ERROR", HttpStatus.INTERNAL_SERVER_ERROR);
     }
-
+    
     /**
-     * 标准错误响应类
+     * 构建统一的错误响应
+     * 
+     * @param message 错误消息
+     * @param errorCode 错误代码
+     * @param status HTTP状态码
+     * @return 响应实体
      */
-    public static class ErrorResponse {
-        private Date timestamp;
-        private int status;
-        private String error;
-        private String message;
-        private String path;
-
-        public ErrorResponse(Date timestamp, int status, String error, String message, String path) {
-            this.timestamp = timestamp;
-            this.status = status;
-            this.error = error;
-            this.message = message;
-            this.path = path;
-        }
-
-        // Getters
-        public Date getTimestamp() { return timestamp; }
-        public int getStatus() { return status; }
-        public String getError() { return error; }
-        public String getMessage() { return message; }
-        public String getPath() { return path; }
-    }
-
-    /**
-     * 参数校验错误响应类
-     */
-    public static class ValidationErrorResponse extends ErrorResponse {
-        private Map<String, String> errors;
-
-        public ValidationErrorResponse(Date timestamp, int status, String error, String message, String path, Map<String, String> errors) {
-            super(timestamp, status, error, message, path);
-            this.errors = errors;
-        }
-
-        public Map<String, String> getErrors() { return errors; }
+    private ResponseEntity<Map<String, Object>> buildErrorResponse(String message, String errorCode, HttpStatus status) {
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("success", false);
+        errorResponse.put("message", message);
+        errorResponse.put("errorCode", errorCode);
+        errorResponse.put("timestamp", System.currentTimeMillis());
+        
+        return new ResponseEntity<>(errorResponse, status);
     }
 }

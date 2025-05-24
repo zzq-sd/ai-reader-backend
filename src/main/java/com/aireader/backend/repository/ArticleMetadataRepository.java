@@ -85,4 +85,61 @@ public interface ArticleMetadataRepository extends JpaRepository<ArticleMetadata
     @Query("SELECT a FROM ArticleMetadata a WHERE a.rssSource = :rssSource " +
             "ORDER BY a.publicationDate DESC")
     List<ArticleMetadata> findLatestByRssSource(@Param("rssSource") RssSource rssSource, Pageable limit);
+    
+    /**
+     * 查询用户收藏的且带有指定标签的文章
+     * 
+     * @param userId 用户ID
+     * @param tagId  标签ID
+     * @param pageable 分页参数
+     * @return 文章元数据分页对象
+     */
+    @Query("SELECT a FROM ArticleMetadata a " +
+            "JOIN UserArticleInteraction uai ON uai.articleMetadata = a AND uai.isFavorite = true " +
+            "JOIN ArticleTag at ON at.articleMetadata = a " +
+            "JOIN Tag t ON at.tag = t " +
+            "WHERE uai.user.id = :userId AND t.id = :tagId")
+    Page<ArticleMetadata> findFavoriteArticlesByUserAndTag(
+            @Param("userId") String userId, 
+            @Param("tagId") String tagId, 
+            Pageable pageable);
+    
+    /**
+     * 搜索用户收藏的文章
+     * 
+     * @param userId 用户ID
+     * @param keyword 搜索关键词
+     * @param pageable 分页参数
+     * @return 文章元数据分页对象
+     */
+    @Query("SELECT a FROM ArticleMetadata a " +
+            "JOIN UserArticleInteraction uai ON uai.articleMetadata = a AND uai.isFavorite = true " +
+            "WHERE uai.user.id = :userId AND " +
+            "(LOWER(a.title) LIKE :keyword OR " +
+            "LOWER(a.summaryText) LIKE :keyword OR " +
+            "LOWER(a.author) LIKE :keyword)")
+    Page<ArticleMetadata> searchFavoriteArticlesByUser(
+            @Param("userId") String userId, 
+            @Param("keyword") String keyword, 
+            Pageable pageable);
+    
+    /**
+     * 根据RSS源ID查找文章元数据（分页）
+     * 
+     * @param rssSourceId RSS源ID
+     * @param pageable 分页参数
+     * @return 文章元数据分页对象
+     */
+    @Query("SELECT a FROM ArticleMetadata a WHERE a.rssSource.id = :rssSourceId")
+    Page<ArticleMetadata> findByRssSourceId(@Param("rssSourceId") String rssSourceId, Pageable pageable);
+    
+    /**
+     * 根据多个RSS源ID查找文章元数据（分页）
+     * 
+     * @param rssSourceIds RSS源ID列表
+     * @param pageable 分页参数
+     * @return 文章元数据分页对象
+     */
+    @Query("SELECT a FROM ArticleMetadata a WHERE a.rssSource.id IN :rssSourceIds")
+    Page<ArticleMetadata> findByRssSourceIdIn(@Param("rssSourceIds") List<String> rssSourceIds, Pageable pageable);
 } 

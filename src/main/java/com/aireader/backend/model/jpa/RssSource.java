@@ -5,11 +5,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.GenericGenerator;
-import org.hibernate.annotations.Type;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.util.UUID;
 
 /**
  * RSS源信息实体类
@@ -26,10 +24,9 @@ public class RssSource {
     
     @Id
     @GeneratedValue(generator = "uuid2")
-    @GenericGenerator(name = "uuid2", strategy = "uuid2")
-    @Column(name = "id", columnDefinition = "BINARY(16)")
-    @Type(type = "uuid-binary")
-    private UUID id;
+    @GenericGenerator(name = "uuid2", strategy = "org.hibernate.id.UUIDGenerator")
+    @Column(name = "id", length = 36, updatable = false, nullable = false)
+    private String id;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -49,6 +46,12 @@ public class RssSource {
     
     @Column(name = "is_public", nullable = false)
     private boolean isPublic = false;
+    
+    @Column(name = "active", nullable = false)
+    private boolean active = true;
+    
+    @Column(name = "fetch_interval")
+    private Integer fetchInterval;
     
     @Column(name = "last_fetched_at")
     private LocalDateTime lastFetchedAt;

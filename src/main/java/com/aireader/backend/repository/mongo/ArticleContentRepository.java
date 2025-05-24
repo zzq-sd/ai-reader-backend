@@ -8,6 +8,7 @@ import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -23,6 +24,29 @@ public interface ArticleContentRepository extends MongoRepository<ArticleContent
      * @return 文章内容
      */
     Optional<ArticleContent> findByMysqlMetadataId(String mysqlMetadataId);
+
+    /**
+     * 根据多个MySQL元数据ID查找文章内容列表
+     * 
+     * @param mysqlMetadataIds MySQL元数据ID列表
+     * @return 文章内容列表
+     */
+    List<ArticleContent> findByMysqlMetadataIdIn(List<String> mysqlMetadataIds);
+    
+    /**
+     * 检查指定MySQL元数据ID的内容是否存在
+     * 
+     * @param mysqlMetadataId MySQL元数据ID
+     * @return 是否存在
+     */
+    boolean existsByMysqlMetadataId(String mysqlMetadataId);
+    
+    /**
+     * 根据MySQL元数据ID删除文章内容
+     * 
+     * @param mysqlMetadataId MySQL元数据ID
+     */
+    void deleteByMysqlMetadataId(String mysqlMetadataId);
 
     /**
      * 通过标题全文搜索文章

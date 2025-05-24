@@ -47,6 +47,12 @@ public class ArticleDTO {
     private Integer wordCount;
     private Integer readingTimeMinutes;
 
+    // 用户交互状态
+    private Boolean isFavorited;
+    private LocalDateTime favoritedAt;
+    private Boolean isRead;
+    private LocalDateTime lastReadAt;
+
     // 知识图谱相关信息
     private List<RelatedArticleDTO> relatedArticles;
     private List<ConceptDTO> relatedConcepts;
@@ -75,7 +81,7 @@ public class ArticleDTO {
         dto.setAiProcessingStatus(metadata.getAiProcessingStatus());
         
         if (metadata.getRssSource() != null) {
-            dto.setRssSourceId(metadata.getRssSource().getId());
+            dto.setRssSourceId(metadata.getRssSource().getId().toString());
             dto.setRssSourceName(metadata.getRssSource().getName());
         }
 
@@ -126,5 +132,25 @@ public class ArticleDTO {
         private String type;
         private Integer frequency;
         private Double confidence;
+    }
+
+    // 设置收藏状态
+    public void setFavorited(Boolean favorited) {
+        this.isFavorited = favorited;
+    }
+
+    // 设置收藏时间
+    public void setFavoritedAt(LocalDateTime favoritedAt) {
+        this.favoritedAt = favoritedAt;
+    }
+
+    // 设置阅读状态
+    public void setRead(Boolean read) {
+        this.isRead = read;
+    }
+
+    // 设置最后阅读时间
+    public void setLastReadAt(LocalDateTime lastReadAt) {
+        this.lastReadAt = lastReadAt;
     }
 }

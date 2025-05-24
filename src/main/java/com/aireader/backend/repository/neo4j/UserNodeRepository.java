@@ -1,5 +1,6 @@
 package com.aireader.backend.repository.neo4j;
 
+import com.aireader.backend.model.neo4j.ConceptNode;
 import com.aireader.backend.model.neo4j.UserNode;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,18 +14,84 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * 用户节点资源库接口
+ * Neo4j用户节点仓库接口
  */
 @Repository
-public interface UserNodeRepository extends Neo4jRepository<UserNode, String> {
-    
+public interface UserNodeRepository extends Neo4jRepository<UserNode, Long> {
+
     /**
      * 根据MySQL ID查找用户节点
      * 
      * @param mysqlId MySQL中的用户ID
-     * @return 用户节点
+     * @return 可选的用户节点
      */
     Optional<UserNode> findByMysqlId(String mysqlId);
+    
+    /**
+     * 查找用户关注的用户
+     * 
+     * @param mysqlId 用户MySQL ID
+     * @return 关注的用户节点列表
+     */
+    @Query("MATCH (u1:User)-[r:FOLLOWS]->(u2:User) " +
+           "WHERE u1.mysql_id = $mysqlId " +
+           "RETURN u2")
+    List<UserNode> findFollowing(@Param("mysqlId") String mysqlId);
+    
+    /**
+     * 查找关注用户的粉丝
+     * 
+     * @param mysqlId 用户MySQL ID
+     * @return 粉丝用户节点列表
+     */
+    @Query("MATCH (u1:User)-[r:FOLLOWS]->(u2:User) " +
+           "WHERE u2.mysql_id = $mysqlId " +
+           "RETURN u1")
+    List<UserNode> findFollowers(@Param("mysqlId") String mysqlId);
+    
+    /**
+     * 查找具有相似兴趣的用户
+     * 
+     * @param mysqlId 用户MySQL ID
+     * @param limit 限制返回数量
+     * @return 相似兴趣的用户节点列表
+     */
+    @Query("MATCH (u1:User)-[r1:INTERESTED_IN]->(c:Concept)<-[r2:INTERESTED_IN]-(u2:User) " +
+           "WHERE u1.mysql_id = $mysqlId AND u1 <> u2 " +
+           "WITH u2, COUNT(c) AS common_interests, AVG(r1.interest_level * r2.interest_level) AS interest_similarity " +
+           "RETURN u2 " +
+           "ORDER BY interest_similarity DESC, common_interests DESC " +
+           "LIMIT $limit")
+    List<UserNode> findUsersWithSimilarInterests(@Param("mysqlId") String mysqlId, @Param("limit") int limit);
+    
+    /**
+     * 推荐可能感兴趣的用户
+     * 
+     * @param mysqlId 用户MySQL ID
+     * @param limit 限制返回数量
+     * @return 推荐的用户节点列表
+     */
+    @Query("MATCH (u1:User)-[:FOLLOWS]->(u2:User)-[:FOLLOWS]->(u3:User) " +
+           "WHERE u1.mysql_id = $mysqlId AND NOT (u1)-[:FOLLOWS]->(u3) AND u1 <> u3 " +
+           "WITH u3, COUNT(DISTINCT u2) AS common_connections " +
+           "RETURN u3 " +
+           "ORDER BY common_connections DESC " +
+           "LIMIT $limit")
+    List<UserNode> recommendUsers(@Param("mysqlId") String mysqlId, @Param("limit") int limit);
+    
+    /**
+     * 获取用户感兴趣的概念
+     * 
+     * @param mysqlId 用户MySQL ID
+     * @param limit 限制返回数量
+     * @return 概念节点列表
+     */
+    @Query("MATCH (u:User)-[r:INTERESTED_IN]->(c:Concept) " +
+           "WHERE u.mysql_id = $mysqlId " +
+           "RETURN c " +
+           "ORDER BY r.interest_level DESC " +
+           "LIMIT $limit")
+    List<ConceptNode> findUserInterests(@Param("mysqlId") String mysqlId, @Param("limit") int limit);
     
     /**
      * 查找用户的阅读兴趣（最常阅读的文章概念）

@@ -15,7 +15,7 @@ import java.util.Optional;
  * 笔记节点资源库接口
  */
 @Repository
-public interface NoteNodeRepository extends Neo4jRepository<NoteNode, String> {
+public interface NoteNodeRepository extends Neo4jRepository<NoteNode, Long> {
     
     /**
      * 根据MySQL ID查找笔记节点
@@ -44,7 +44,7 @@ public interface NoteNodeRepository extends Neo4jRepository<NoteNode, String> {
         value = "MATCH (n:Note)-[r:MENTIONS_CONCEPT]->(c:Concept) WHERE ID(c) = $conceptId RETURN n, r, c ORDER BY r.frequency DESC SKIP $skip LIMIT $limit",
         countQuery = "MATCH (n:Note)-[r:MENTIONS_CONCEPT]->(c:Concept) WHERE ID(c) = $conceptId RETURN count(DISTINCT n)"
     )
-    Page<NoteNode> findNotesByConceptId(@Param("conceptId") String conceptId, Pageable pageable);
+    Page<NoteNode> findNotesByConceptId(@Param("conceptId") Long conceptId, Pageable pageable);
     
     /**
      * 查找与特定文章相关的笔记
@@ -53,7 +53,7 @@ public interface NoteNodeRepository extends Neo4jRepository<NoteNode, String> {
      * @return 笔记节点列表
      */
     @Query("MATCH (n:Note)-[:REFERS_TO]->(a:Article) WHERE ID(a) = $articleNodeId RETURN n")
-    List<NoteNode> findNotesByArticleId(@Param("articleNodeId") String articleNodeId);
+    List<NoteNode> findNotesByArticleId(@Param("articleNodeId") Long articleNodeId);
     
     /**
      * 查找含有特定概念的用户笔记

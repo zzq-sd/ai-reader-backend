@@ -11,9 +11,14 @@ spring:
   main:
     allow-bean-definition-overriding: true
   
+  # 禁用Spring Boot的Neo4j自动配置
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.neo4j.Neo4jAutoConfiguration
+  
   # 数据源配置 (MySQL)
   datasource:
-    url: jdbc:mysql://localhost:3306/ai_reader_db?useSSL=false&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
+    url: jdbc:mysql://localhost:3306/ai_reader_db?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: ZZQ123456zzq
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -25,7 +30,7 @@ spring:
   
   # JPA配置
   jpa:
-    database-platform: org.hibernate.dialect.MySQL8Dialect
+    database-platform: org.hibernate.dialect.MySQLDialect
     hibernate:
       ddl-auto: update
     show-sql: true
@@ -38,11 +43,18 @@ spring:
     mongodb:
       uri: mongodb://localhost:27017/ai_reader
     
-    # Neo4j配置
+    # Neo4j配置 - 适配Spring Boot 3.x
     neo4j:
+      # 连接URI
       uri: bolt://localhost:7687
-      username: neo4j
-      password: ZZQ123456zzq
+      # 认证信息
+      authentication:
+        username: neo4j
+        password: ZZQ123456zzq
+      # 连接池设置
+      pool:
+        max-connection-lifetime: 1h
+        max-connection-pool-size: 50
   
   # RabbitMQ配置
   rabbitmq:
@@ -58,12 +70,28 @@ spring:
           max-attempts: 3
           multiplier: 2
           max-interval: 30000
+    template:
+      exchange: rss.exchange  # 取消注释，启用默认交换机配置
+      routing-key:
+        article-processing: article.analysis
+        rss-fetch: rss.fetch
+        knowledge-graph: knowledge.graph.update
   
   # 文件上传配置
   servlet:
     multipart:
       max-file-size: 10MB
       max-request-size: 15MB
+      
+  # Spring AI OpenAI 配置
+  ai:
+    openai:
+      api-key: YOUR_OPENAI_API_KEY_HERE  # !!! 请替换为你的OpenAI API Key !!!
+      base-url: https://api.openai.com
+      model: gpt-3.5-turbo # 或者你偏好的其他模型，如 gpt-4
+      temperature: 0.7
+      top-p: 1.0
+      max-tokens: 2000
 
 # JWT配置
 jwt:
@@ -78,19 +106,21 @@ rss:
     timeout: 30000  # 请求超时时间（毫秒）
 
 # AI服务配置（示例，具体根据实际的AI服务进行配置）
-ai:
-  service:
-    url: http://localhost:9000/api
-    apiKey: your-api-key-here
-    timeout: 60000  # 请求超时时间（毫秒）
+#ai:
+#  service:
+#    url: http://localhost:9000/api
+#    apiKey: your-api-key-here
+#    timeout: 60000  # 请求超时时间（毫秒）
 
 # 日志配置
 logging:
   level:
     root: INFO
     com.aireader.backend: DEBUG
-    org.springframework.data: INFO
-    org.springframework.security: INFO
+    org.springframework.web: DEBUG
+    org.springframework.security: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql: TRACE
 
 # SpringDoc OpenAPI配置
 springdoc:

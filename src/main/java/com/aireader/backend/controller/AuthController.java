@@ -4,6 +4,7 @@ import com.aireader.backend.dto.auth.JwtAuthenticationResponseDto;
 import com.aireader.backend.dto.auth.LoginRequestDto;
 import com.aireader.backend.dto.auth.UserRegistrationRequestDto;
 import com.aireader.backend.dto.auth.UserResponseDto;
+import com.aireader.backend.dto.common.ApiResponse;
 import com.aireader.backend.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -12,7 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import javax.validation.Valid;
+import jakarta.validation.Valid;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,7 +24,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/auth")
 @Tag(name = "认证接口", description = "提供用户注册、登录、令牌刷新等功能")
-public class AuthController {
+public class AuthController extends BaseController {
     
     @Autowired
     private AuthService authService;
@@ -36,10 +37,10 @@ public class AuthController {
      */
     @PostMapping("/register")
     @Operation(summary = "用户注册", description = "创建新用户账号")
-    public ResponseEntity<UserResponseDto> registerUser(
+    public ResponseEntity<ApiResponse> registerUser(
             @Valid @RequestBody UserRegistrationRequestDto registrationRequest) {
         UserResponseDto userResponse = authService.register(registrationRequest);
-        return new ResponseEntity<>(userResponse, HttpStatus.CREATED);
+        return new ResponseEntity<>(ApiResponse.success(userResponse), HttpStatus.CREATED);
     }
     
     /**
@@ -50,10 +51,10 @@ public class AuthController {
      */
     @PostMapping("/login")
     @Operation(summary = "用户登录", description = "验证用户凭证并返回JWT令牌")
-    public ResponseEntity<JwtAuthenticationResponseDto> login(
+    public ResponseEntity<ApiResponse> login(
             @Valid @RequestBody LoginRequestDto loginRequest) {
         JwtAuthenticationResponseDto response = authService.login(loginRequest);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
     
     /**
@@ -64,10 +65,10 @@ public class AuthController {
      */
     @PostMapping("/refresh")
     @Operation(summary = "刷新令牌", description = "使用刷新令牌获取新的访问令牌")
-    public ResponseEntity<JwtAuthenticationResponseDto> refreshToken(
+    public ResponseEntity<ApiResponse> refreshToken(
             @RequestParam String refreshToken) {
         JwtAuthenticationResponseDto response = authService.refreshToken(refreshToken);
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
     
     /**
@@ -77,9 +78,9 @@ public class AuthController {
      */
     @GetMapping("/me")
     @Operation(summary = "获取当前用户信息", description = "返回当前登录用户的详细信息")
-    public ResponseEntity<UserResponseDto> getCurrentUser() {
+    public ResponseEntity<ApiResponse> getCurrentUser() {
         UserResponseDto userResponse = authService.getCurrentUser();
-        return ResponseEntity.ok(userResponse);
+        return ResponseEntity.ok(ApiResponse.success(userResponse));
     }
     
     /**
@@ -90,11 +91,11 @@ public class AuthController {
      */
     @GetMapping("/check-username")
     @Operation(summary = "检查用户名是否可用", description = "检查指定的用户名是否已被注册")
-    public ResponseEntity<Map<String, Boolean>> checkUsernameAvailability(
+    public ResponseEntity<ApiResponse> checkUsernameAvailability(
             @RequestParam String username) {
         Map<String, Boolean> response = new HashMap<>();
         response.put("available", !authService.existsByUsername(username));
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
     
     /**
@@ -105,10 +106,10 @@ public class AuthController {
      */
     @GetMapping("/check-email")
     @Operation(summary = "检查邮箱是否可用", description = "检查指定的邮箱是否已被注册")
-    public ResponseEntity<Map<String, Boolean>> checkEmailAvailability(
+    public ResponseEntity<ApiResponse> checkEmailAvailability(
             @RequestParam String email) {
         Map<String, Boolean> response = new HashMap<>();
         response.put("available", !authService.existsByEmail(email));
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

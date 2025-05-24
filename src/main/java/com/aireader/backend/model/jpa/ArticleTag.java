@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import javax.persistence.*;
+import jakarta.persistence.*;
 import java.io.Serializable;
 import java.util.UUID;
 
@@ -58,7 +58,7 @@ public class ArticleTag {
         @Column(name = "tag_id", columnDefinition = "CHAR(36)")
         private String tagId;
         
-        @Column(name = "user_id", columnDefinition = "BINARY(16)")
-        private UUID userId;
+        @Column(name = "user_id", columnDefinition = "CHAR(36)")
+        private String userId;
     }
 } 
