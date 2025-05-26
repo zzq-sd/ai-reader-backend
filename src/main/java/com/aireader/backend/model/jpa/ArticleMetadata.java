@@ -62,6 +62,12 @@ public class ArticleMetadata {
     private String category;
     
     /**
+     * 文章封面图片URL
+     */
+    @Column(name = "cover_image_url", length = 2048)
+    private String coverImageUrl;
+    
+    /**
      * 获取文章发布日期
      * @return 发布日期
      */

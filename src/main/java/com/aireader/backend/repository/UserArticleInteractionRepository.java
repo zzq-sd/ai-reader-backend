@@ -7,9 +7,11 @@ import com.aireader.backend.model.jpa.UserArticleInteraction.UserArticleInteract
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -96,4 +98,38 @@ public interface UserArticleInteractionRepository extends JpaRepository<UserArti
      * @return 阅读过的文章数量
      */
     long countByUserAndIsReadTrue(User user);
+    
+    /**
+     * 根据文章元数据ID删除所有相关的用户交互记录
+     * 
+     * @param articleMetadataId 文章元数据ID
+     */
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM UserArticleInteraction uai WHERE uai.articleMetadata.id = :articleMetadataId")
+    void deleteByArticleMetadataId(@Param("articleMetadataId") String articleMetadataId);
+    
+    /**
+     * 根据文章元数据ID列表批量删除所有相关的用户交互记录
+     * 
+     * @param articleMetadataIds 文章元数据ID列表
+     */
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM UserArticleInteraction uai WHERE uai.articleMetadata.id IN :articleMetadataIds")
+    void deleteByArticleMetadataIdIn(@Param("articleMetadataIds") List<String> articleMetadataIds);
+    
+    /**
+     * 根据文章元数据对象删除所有相关的用户交互记录
+     * 
+     * @param articleMetadata 文章元数据对象
+     */
+    void deleteByArticleMetadata(ArticleMetadata articleMetadata);
+    
+    /**
+     * 根据文章元数据对象列表批量删除所有相关的用户交互记录
+     * 
+     * @param articleMetadataList 文章元数据对象列表
+     */
+    void deleteByArticleMetadataIn(List<ArticleMetadata> articleMetadataList);
 } 

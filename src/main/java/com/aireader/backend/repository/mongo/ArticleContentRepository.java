@@ -49,6 +49,13 @@ public interface ArticleContentRepository extends MongoRepository<ArticleContent
     void deleteByMysqlMetadataId(String mysqlMetadataId);
 
     /**
+     * 根据多个MySQL元数据ID批量删除文章内容
+     * 
+     * @param mysqlMetadataIds MySQL元数据ID列表
+     */
+    void deleteByMysqlMetadataIdIn(List<String> mysqlMetadataIds);
+
+    /**
      * 通过标题全文搜索文章
      *
      * @param title 标题关键词

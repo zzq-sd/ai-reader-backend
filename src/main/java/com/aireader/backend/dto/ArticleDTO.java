@@ -27,6 +27,7 @@ public class ArticleDTO {
     private String summary;
     private String originalUrl;
     private String imageUrl;
+    private String coverImageUrl;
     private String categories;
     private LocalDateTime createdAt;
 
@@ -80,6 +81,12 @@ public class ArticleDTO {
         dto.setCreatedAt(metadata.getCreatedAt());
         dto.setAiProcessingStatus(metadata.getAiProcessingStatus());
         
+        // 设置封面图URL - 同时设置到imageUrl和coverImageUrl字段
+        if (metadata.getCoverImageUrl() != null && !metadata.getCoverImageUrl().isEmpty()) {
+            dto.setImageUrl(metadata.getCoverImageUrl());
+            dto.setCoverImageUrl(metadata.getCoverImageUrl());
+        }
+        
         if (metadata.getRssSource() != null) {
             dto.setRssSourceId(metadata.getRssSource().getId().toString());
             dto.setRssSourceName(metadata.getRssSource().getName());
@@ -89,6 +96,14 @@ public class ArticleDTO {
         if (content != null) {
             dto.setHtmlContent(content.getFullHtmlContent());
             dto.setPlainTextContent(content.getPlainTextContent());
+            
+            // 如果文章没有封面图而内容有图片，则使用内容中的图片作为封面
+            if ((dto.getImageUrl() == null || dto.getImageUrl().isEmpty()) && 
+                content.getExtractedImagesUrls() != null && 
+                !content.getExtractedImagesUrls().isEmpty()) {
+                dto.setImageUrl(content.getExtractedImagesUrls().get(0));
+                dto.setCoverImageUrl(content.getExtractedImagesUrls().get(0));
+            }
             
             if (content.getProcessingInfo() != null) {
                 dto.setExtractedKeywords(content.getProcessingInfo().getExtractedKeywords());

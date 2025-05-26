@@ -142,4 +142,31 @@ public interface ArticleMetadataRepository extends JpaRepository<ArticleMetadata
      */
     @Query("SELECT a FROM ArticleMetadata a WHERE a.rssSource.id IN :rssSourceIds")
     Page<ArticleMetadata> findByRssSourceIdIn(@Param("rssSourceIds") List<String> rssSourceIds, Pageable pageable);
+    
+    /**
+     * 根据RSS源ID查找所有文章元数据（不分页）
+     * 
+     * @param rssSourceId RSS源ID
+     * @return 文章元数据列表
+     */
+    @Query("SELECT a FROM ArticleMetadata a WHERE a.rssSource.id = :rssSourceId")
+    List<ArticleMetadata> findByRssSourceId(@Param("rssSourceId") String rssSourceId);
+    
+    /**
+     * 根据用户ID查找所有RSS源的文章（通过RSS源的用户关联）
+     * 
+     * @param userId 用户ID
+     * @return 文章元数据列表
+     */
+    @Query("SELECT a FROM ArticleMetadata a WHERE a.rssSource.user.id = :userId")
+    List<ArticleMetadata> findByRssSourceUserId(@Param("userId") String userId);
+    
+    /**
+     * 统计用户订阅的RSS源的文章总数
+     * 
+     * @param userId 用户ID
+     * @return 文章总数
+     */
+    @Query("SELECT COUNT(a) FROM ArticleMetadata a WHERE a.rssSource.user.id = :userId")
+    long countByRssSourceUserId(@Param("userId") String userId);
 } 

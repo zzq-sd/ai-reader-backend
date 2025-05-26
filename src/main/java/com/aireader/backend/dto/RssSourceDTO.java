@@ -54,6 +54,23 @@ public class RssSourceDTO {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+    
+    // RSSHub特定字段
+    @JsonProperty("isRsshub")
+    private boolean isRsshub;
+    
+    private String rsshubRoute;
+    
+    private String rsshubInstance;
+
+    // 添加isRsshub的标准getter和setter以确保一致性
+    public boolean isRsshub() {
+        return isRsshub;
+    }
+    
+    public void setRsshub(boolean rsshub) {
+        this.isRsshub = rsshub;
+    }
 
     /**
      * 将实体转换为DTO
@@ -81,6 +98,9 @@ public class RssSourceDTO {
                 .lastFetchedAt(rssSource.getLastFetchedAt())
                 .createdAt(rssSource.getCreatedAt())
                 .updatedAt(rssSource.getUpdatedAt())
+                .isRsshub(rssSource.getIsRsshub() != null && rssSource.getIsRsshub())
+                .rsshubRoute(rssSource.getRsshubRoute())
+                .rsshubInstance(rssSource.getRsshubInstance())
                 .build();
     }
 
@@ -98,6 +118,9 @@ public class RssSourceDTO {
                 .isPublic(this.isPublic)
                 .active(this.active)
                 .fetchInterval(this.fetchInterval)
+                .isRsshub(this.isRsshub)
+                .rsshubRoute(this.rsshubRoute)
+                .rsshubInstance(this.rsshubInstance)
                 .build();
     }
 }

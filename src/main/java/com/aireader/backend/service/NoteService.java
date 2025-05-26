@@ -2,6 +2,7 @@ package com.aireader.backend.service;
 
 import com.aireader.backend.dto.NoteRequestDto;
 import com.aireader.backend.dto.NoteResponseDto;
+import com.aireader.backend.dto.PageResponseDto;
 import com.aireader.backend.dto.TagDto;
 
 import java.util.List;
@@ -56,9 +57,9 @@ public interface NoteService {
      * @param userId 用户ID
      * @param page 页码
      * @param size 每页大小
-     * @return 笔记列表
+     * @return 分页的笔记列表
      */
-    List<NoteResponseDto> getUserNotes(String userId, int page, int size);
+    PageResponseDto<NoteResponseDto> getUserNotes(String userId, int page, int size);
     
     /**
      * 获取文章的所有笔记
@@ -89,9 +90,9 @@ public interface NoteService {
      * @param userId 用户ID
      * @param page 页码
      * @param size 每页大小
-     * @return 笔记列表
+     * @return 分页的笔记列表
      */
-    List<NoteResponseDto> searchNotes(String keyword, String userId, int page, int size);
+    PageResponseDto<NoteResponseDto> searchNotes(String keyword, String userId, int page, int size);
     
     /**
      * 获取用户的所有标签

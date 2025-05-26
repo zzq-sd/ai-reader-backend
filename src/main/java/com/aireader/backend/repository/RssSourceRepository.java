@@ -5,6 +5,7 @@ import com.aireader.backend.model.jpa.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -85,4 +86,35 @@ public interface RssSourceRepository extends JpaRepository<RssSource, String> {
      * @return 需要更新的RSS源列表
      */
     List<RssSource> findByLastFetchedAtBeforeOrLastFetchedAtIsNull(LocalDateTime lastFetchedBefore);
+    
+    /**
+     * 更新RSS源的RSSHub相关字段
+     * 
+     * @param id RSS源ID
+     * @param isRsshub 是否为RSSHub源
+     * @param rsshubRoute RSSHub路由
+     * @param rsshubInstance RSSHub实例URL
+     * @return 更新的记录数
+     */
+    @Modifying
+    @Query("UPDATE RssSource r SET r.isRsshub = :isRsshub, r.rsshubRoute = :rsshubRoute, r.rsshubInstance = :rsshubInstance WHERE r.id = :id")
+    int updateRsshubFields(@Param("id") String id, 
+                          @Param("isRsshub") boolean isRsshub,
+                          @Param("rsshubRoute") String rsshubRoute, 
+                          @Param("rsshubInstance") String rsshubInstance);
+    
+    /**
+     * 查找所有RSSHub源
+     * 
+     * @return RSSHub源列表
+     */
+    List<RssSource> findByIsRsshubTrue();
+    
+    /**
+     * 根据用户查找所有RSSHub源
+     * 
+     * @param user 用户对象
+     * @return RSSHub源列表
+     */
+    List<RssSource> findByIsRsshubTrueAndUser(User user);
 } 

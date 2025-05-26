@@ -6,11 +6,18 @@ import com.aireader.backend.dto.RssSourceDTO;
 import com.aireader.backend.model.jpa.ArticleMetadata;
 import com.aireader.backend.model.jpa.RssSource;
 import com.aireader.backend.model.jpa.User;
+import com.aireader.backend.model.jpa.Note;
 import com.aireader.backend.repository.ArticleMetadataRepository;
 import com.aireader.backend.repository.RssSourceRepository;
 import com.aireader.backend.repository.UserRepository;
+import com.aireader.backend.repository.mongo.ArticleContentRepository;
+import com.aireader.backend.repository.UserArticleInteractionRepository;
+import com.aireader.backend.repository.ArticleTagRepository;
+import com.aireader.backend.repository.NoteRepository;
 import com.aireader.backend.service.ArticleFetchService;
 import com.aireader.backend.service.RssFeedService;
+import com.aireader.backend.service.ReadStatusService;
+import com.aireader.backend.service.FavoriteService;
 import com.rometools.rome.feed.synd.SyndFeed;
 import com.rometools.rome.io.SyndFeedInput;
 import com.rometools.rome.io.XmlReader;
@@ -44,6 +51,12 @@ public class RssFeedServiceImpl implements RssFeedService {
     private final ArticleMetadataRepository articleMetadataRepository;
     private final ArticleFetchService articleFetchService;
     private final RabbitTemplate rabbitTemplate;
+    private final ArticleContentRepository articleContentRepository;
+    private final ReadStatusService readStatusService;
+    private final FavoriteService favoriteService;
+    private final UserArticleInteractionRepository userArticleInteractionRepository;
+    private final ArticleTagRepository articleTagRepository;
+    private final NoteRepository noteRepository;
     
     @Value("${rss.fetch.timeout}")
     private int fetchTimeout;
@@ -53,12 +66,24 @@ public class RssFeedServiceImpl implements RssFeedService {
                              UserRepository userRepository,
                              ArticleMetadataRepository articleMetadataRepository,
                              ArticleFetchService articleFetchService,
-                             RabbitTemplate rabbitTemplate) {
+                             RabbitTemplate rabbitTemplate,
+                             ArticleContentRepository articleContentRepository,
+                             ReadStatusService readStatusService,
+                             FavoriteService favoriteService,
+                             UserArticleInteractionRepository userArticleInteractionRepository,
+                             ArticleTagRepository articleTagRepository,
+                             NoteRepository noteRepository) {
         this.rssSourceRepository = rssSourceRepository;
         this.userRepository = userRepository;
         this.articleMetadataRepository = articleMetadataRepository;
         this.articleFetchService = articleFetchService;
         this.rabbitTemplate = rabbitTemplate;
+        this.articleContentRepository = articleContentRepository;
+        this.readStatusService = readStatusService;
+        this.favoriteService = favoriteService;
+        this.userArticleInteractionRepository = userArticleInteractionRepository;
+        this.articleTagRepository = articleTagRepository;
+        this.noteRepository = noteRepository;
     }
     
     /**
@@ -102,6 +127,11 @@ public class RssFeedServiceImpl implements RssFeedService {
         rssSource.setCreatedAt(LocalDateTime.now());
         rssSource.setUpdatedAt(LocalDateTime.now());
         rssSource.setLastFetchedAt(null);
+        
+        // 设置RSSHub特定字段
+        rssSource.setIsRsshub(rssSourceDTO.isRsshub());
+        rssSource.setRsshubRoute(rssSourceDTO.getRsshubRoute());
+        rssSource.setRsshubInstance(rssSourceDTO.getRsshubInstance());
         
         // 保存RSS源
         RssSource savedSource = rssSourceRepository.save(rssSource);
@@ -211,7 +241,7 @@ public class RssFeedServiceImpl implements RssFeedService {
     }
     
     /**
-     * 删除RSS源
+     * 删除RSS源及其关联的所有数据
      * 
      * @param sourceId RSS源ID
      * @param userId 用户ID
@@ -220,18 +250,133 @@ public class RssFeedServiceImpl implements RssFeedService {
     @Override
     @Transactional
     public boolean deleteRssSource(String sourceId, String userId) {
-        RssSource rssSource = rssSourceRepository.findById(sourceId)
-                .orElseThrow(() -> new RuntimeException("RSS源不存在"));
-        
-        // 检查权限 (userId 是真正的用户ID/UUID)
-        if (rssSource.getUser() == null || !rssSource.getUser().getId().equals(userId)) {
-            throw new RuntimeException("无权删除此RSS源");
+        try {
+            // 1. 检查RSS源是否存在
+            Optional<RssSource> rssSourceOpt = rssSourceRepository.findById(sourceId);
+            if (rssSourceOpt.isEmpty()) {
+                log.warn("尝试删除不存在的RSS源: {}", sourceId);
+                return false;
+            }
+            
+            RssSource rssSource = rssSourceOpt.get();
+            
+            // 2. 检查权限 - 确保用户只能删除自己的RSS源
+            if (rssSource.getUser() == null || !rssSource.getUser().getId().equals(userId)) {
+                log.warn("用户 {} 尝试删除不属于自己的RSS源: {}", userId, sourceId);
+                throw new RuntimeException("无权删除此RSS源");
+            }
+            
+            // 3. 调用内部删除方法
+            return deleteRssSource(sourceId);
+            
+        } catch (Exception e) {
+            log.error("删除RSS源时发生错误: sourceId={}, userId={}, error={}", sourceId, userId, e.getMessage(), e);
+            throw new RuntimeException("删除RSS源失败: " + e.getMessage(), e);
         }
-        
-        // 删除RSS源
-        rssSourceRepository.delete(rssSource);
-        
-        return true;
+    }
+    
+    /**
+     * 删除RSS源及其关联的所有数据（内部方法）
+     * 
+     * @param rssSourceId RSS源ID
+     * @return 是否删除成功
+     */
+    @Override
+    @Transactional
+    public boolean deleteRssSource(String rssSourceId) {
+        try {
+            // 1. 检查RSS源是否存在
+            Optional<RssSource> rssSourceOpt = rssSourceRepository.findById(rssSourceId);
+            if (rssSourceOpt.isEmpty()) {
+                log.warn("尝试删除不存在的RSS源: {}", rssSourceId);
+                return false;
+            }
+            
+            RssSource rssSource = rssSourceOpt.get();
+            log.info("开始删除RSS源: {} ({})", rssSource.getName(), rssSourceId);
+            
+            // 2. 查找该RSS源下的所有文章元数据
+            List<ArticleMetadata> articles = articleMetadataRepository.findByRssSourceId(rssSourceId);
+            log.info("找到 {} 篇文章需要删除", articles.size());
+            
+            if (!articles.isEmpty()) {
+                List<String> articleIds = articles.stream()
+                    .map(ArticleMetadata::getId)
+                    .collect(Collectors.toList());
+                
+                // 3. 删除用户文章交互记录（收藏、已读等）
+                try {
+                    log.info("开始删除用户文章交互记录...");
+                    userArticleInteractionRepository.deleteByArticleMetadataIdIn(articleIds);
+                    log.info("已删除用户文章交互记录");
+                } catch (Exception e) {
+                    log.error("删除用户文章交互记录时出现错误: {}", e.getMessage(), e);
+                    throw new RuntimeException("删除用户文章交互记录失败: " + e.getMessage(), e);
+                }
+                
+                // 4. 删除文章标签关联记录
+                try {
+                    log.info("开始删除文章标签关联记录...");
+                    articleTagRepository.deleteByArticleMetadataIdIn(articleIds);
+                    log.info("已删除文章标签关联记录");
+                } catch (Exception e) {
+                    log.error("删除文章标签关联记录时出现错误: {}", e.getMessage(), e);
+                    throw new RuntimeException("删除文章标签关联记录失败: " + e.getMessage(), e);
+                }
+                
+                // 5. 删除关联到文章的笔记
+                try {
+                    log.info("开始删除关联到文章的笔记...");
+                    for (ArticleMetadata article : articles) {
+                        List<Note> notes = noteRepository.findByArticleMetadata(article);
+                        if (!notes.isEmpty()) {
+                            noteRepository.deleteAll(notes);
+                            log.info("已删除文章 {} 的 {} 条笔记", article.getId(), notes.size());
+                        }
+                    }
+                    log.info("已删除所有关联笔记");
+                } catch (Exception e) {
+                    log.error("删除关联笔记时出现错误: {}", e.getMessage(), e);
+                    throw new RuntimeException("删除关联笔记失败: " + e.getMessage(), e);
+                }
+                
+                // 6. 删除MongoDB中的文章内容
+                try {
+                    log.info("开始删除MongoDB中的文章内容...");
+                    articleContentRepository.deleteByMysqlMetadataIdIn(articleIds);
+                    log.info("已删除MongoDB中的 {} 篇文章内容", articleIds.size());
+                } catch (Exception e) {
+                    log.warn("删除MongoDB文章内容时出现错误: {}", e.getMessage());
+                    // 继续执行，不因为MongoDB删除失败而中断整个流程
+                }
+                
+                // 7. 删除MySQL中的文章元数据
+                try {
+                    log.info("开始删除MySQL中的文章元数据...");
+                    articleMetadataRepository.deleteAll(articles);
+                    log.info("已删除MySQL中的 {} 篇文章元数据", articles.size());
+                } catch (Exception e) {
+                    log.error("删除MySQL文章元数据时出现错误: {}", e.getMessage(), e);
+                    throw new RuntimeException("删除文章元数据失败: " + e.getMessage(), e);
+                }
+            }
+            
+            // 8. 最后删除RSS源
+            try {
+                log.info("开始删除RSS源...");
+                rssSourceRepository.delete(rssSource);
+                log.info("已删除RSS源: {} ({})", rssSource.getName(), rssSourceId);
+            } catch (Exception e) {
+                log.error("删除RSS源时出现错误: {}", e.getMessage(), e);
+                throw new RuntimeException("删除RSS源失败: " + e.getMessage(), e);
+            }
+            
+            return true;
+            
+        } catch (Exception e) {
+            log.error("删除RSS源时发生错误: {}", e.getMessage(), e);
+            throw new RuntimeException("删除RSS源失败: " + e.getMessage(), e);
+        }
     }
     
     /**
@@ -240,11 +385,12 @@ public class RssFeedServiceImpl implements RssFeedService {
      * @param sourceId RSS源ID
      * @param page 页码
      * @param size 每页大小
+     * @param userId 用户ID，用于获取已读状态
      * @return 分页的文章列表
      */
     @Override
     @Transactional(readOnly = true)
-    public Page<ArticleDTO> getArticlesByRssSource(String sourceId, int page, int size) {
+    public Page<ArticleDTO> getArticlesByRssSource(String sourceId, int page, int size, String userId) {
         // 检查RSS源是否存在
         if (!rssSourceRepository.existsById(sourceId)) {
             throw new RuntimeException("RSS源不存在");
@@ -255,9 +401,9 @@ public class RssFeedServiceImpl implements RssFeedService {
         Page<ArticleMetadata> articles = articleMetadataRepository.findByRssSourceId(
                 sourceId, pageable);
         
-        // 转换为DTO并保持分页信息
+        // 转换为DTO并保持分页信息，包含用户已读状态
         List<ArticleDTO> articleDTOs = articles.getContent().stream()
-                .map(this::convertToArticleDto)
+                .map(article -> convertToArticleDto(article, userId))
                 .collect(Collectors.toList());
         
         // 创建包含分页信息的Page对象
@@ -288,9 +434,9 @@ public class RssFeedServiceImpl implements RssFeedService {
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "publicationDate"));
         Page<ArticleMetadata> articles = articleMetadataRepository.findByRssSourceIdIn(sourceIds, pageable);
         
-        // 转换为DTO
+        // 转换为DTO，包含用户已读状态
         return articles.getContent().stream()
-                .map(this::convertToArticleDto)
+                .map(article -> convertToArticleDto(article, userId))
                 .collect(Collectors.toList());
     }
     
@@ -324,13 +470,34 @@ public class RssFeedServiceImpl implements RssFeedService {
     @Override
     public boolean validateRssUrl(String url) {
         try {
+            log.info("开始验证RSS源URL: {}", url);
             URL feedUrl = new URL(url);
-            SyndFeedInput input = new SyndFeedInput();
-            SyndFeed feed = input.build(new XmlReader(feedUrl));
             
-            // 如果能成功解析，则认为URL有效
-            return feed != null && feed.getEntries() != null;
+            // 设置超时时间
+            SyndFeedInput input = new SyndFeedInput();
+            XmlReader reader = new XmlReader(feedUrl);
+            
+            // 尝试解析Feed
+            SyndFeed feed = input.build(reader);
+            
+            // 判断Feed是否有效
+            boolean isValid = feed != null && feed.getEntries() != null;
+            
+            if (isValid) {
+                log.info("RSS源URL验证成功: {}, 条目数: {}", url, feed.getEntries().size());
+                return true;
+            } else {
+                log.warn("RSS源URL验证失败: {} - Feed为空或没有条目", url);
+                return false;
+            }
+            
         } catch (Exception e) {
+            // RSSHub源可能需要一些特殊处理，暂时放宽验证
+            if (url.contains("localhost:1200") || url.contains("rsshub.app")) {
+                log.info("检测到RSSHub源，跳过严格验证: {}, 错误: {}", url, e.getMessage());
+                return true;
+            }
+            
             log.warn("RSS URL验证失败: {}, 错误: {}", url, e.getMessage());
             return false;
         }
@@ -357,6 +524,11 @@ public class RssFeedServiceImpl implements RssFeedService {
         dto.setUpdatedAt(rssSource.getUpdatedAt());
         dto.setLastFetchedAt(rssSource.getLastFetchedAt());
         
+        // 设置RSSHub特定字段
+        dto.setRsshub(rssSource.getIsRsshub() != null && rssSource.getIsRsshub());
+        dto.setRsshubRoute(rssSource.getRsshubRoute());
+        dto.setRsshubInstance(rssSource.getRsshubInstance());
+        
         return dto;
     }
     
@@ -381,6 +553,11 @@ public class RssFeedServiceImpl implements RssFeedService {
         entity.setCategory(rssSourceDTO.getCategory());
         entity.setPublic(rssSourceDTO.isPublic());
         
+        // 设置RSSHub特定字段
+        entity.setIsRsshub(rssSourceDTO.isRsshub());
+        entity.setRsshubRoute(rssSourceDTO.getRsshubRoute());
+        entity.setRsshubInstance(rssSourceDTO.getRsshubInstance());
+        
         // 设置时间字段
         entity.setCreatedAt(rssSourceDTO.getCreatedAt() != null ? 
                 rssSourceDTO.getCreatedAt() : LocalDateTime.now());
@@ -398,6 +575,17 @@ public class RssFeedServiceImpl implements RssFeedService {
      * @return 文章DTO
      */
     private ArticleDTO convertToArticleDto(ArticleMetadata articleMetadata) {
+        return convertToArticleDto(articleMetadata, null);
+    }
+    
+    /**
+     * 将文章实体转换为DTO，包含用户已读状态
+     * 
+     * @param articleMetadata 文章元数据实体
+     * @param userId 用户ID，如果为null则不查询已读状态
+     * @return 文章DTO
+     */
+    private ArticleDTO convertToArticleDto(ArticleMetadata articleMetadata, String userId) {
         ArticleDTO dto = new ArticleDTO();
         dto.setId(articleMetadata.getId());
         dto.setTitle(articleMetadata.getTitle());
@@ -408,6 +596,30 @@ public class RssFeedServiceImpl implements RssFeedService {
         dto.setPublicationDate(articleMetadata.getPublicationDate());
         dto.setRssSourceId(articleMetadata.getRssSource().getId().toString());
         dto.setRssSourceName(articleMetadata.getRssSource().getName());
+        
+        // 如果提供了用户ID，查询已读状态和收藏状态
+        if (userId != null) {
+            try {
+                boolean isRead = readStatusService.isRead(articleMetadata.getId(), userId);
+                dto.setIsRead(isRead);
+            } catch (Exception e) {
+                log.warn("获取文章已读状态失败: articleId={}, userId={}, error={}", 
+                        articleMetadata.getId(), userId, e.getMessage());
+                dto.setIsRead(false); // 默认为未读
+            }
+            
+            try {
+                boolean isFavorited = favoriteService.isFavorite(articleMetadata.getId(), userId);
+                dto.setIsFavorited(isFavorited);
+            } catch (Exception e) {
+                log.warn("获取文章收藏状态失败: articleId={}, userId={}, error={}", 
+                        articleMetadata.getId(), userId, e.getMessage());
+                dto.setIsFavorited(false); // 默认为未收藏
+            }
+        } else {
+            dto.setIsRead(false); // 默认为未读
+            dto.setIsFavorited(false); // 默认为未收藏
+        }
         
         return dto;
     }

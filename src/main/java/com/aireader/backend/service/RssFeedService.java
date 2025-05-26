@@ -66,14 +66,23 @@ public interface RssFeedService {
     boolean deleteRssSource(String sourceId, String userId);
     
     /**
+     * 删除RSS源（管理员权限或内部调用）
+     * 
+     * @param sourceId RSS源ID
+     * @return 是否删除成功
+     */
+    boolean deleteRssSource(String sourceId);
+    
+    /**
      * 获取RSS源的文章列表
      * 
      * @param sourceId RSS源ID
      * @param page 页码
      * @param size 每页大小
+     * @param userId 用户ID，用于获取已读状态
      * @return 文章列表
      */
-    Page<ArticleDTO> getArticlesByRssSource(String sourceId, int page, int size);
+    Page<ArticleDTO> getArticlesByRssSource(String sourceId, int page, int size, String userId);
     
     /**
      * 获取用户订阅的所有RSS源的最新文章

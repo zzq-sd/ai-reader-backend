@@ -105,6 +105,12 @@ rss:
     cron: 0 0 */6 * * *  # 每6小时抓取一次RSS源
     timeout: 30000  # 请求超时时间（毫秒）
 
+# RSSHub相关配置
+rsshub:
+  instances: http://localhost:1200,https://rsshub.app  # 优先使用本地实例
+  timeout: 15000  # 增加请求超时时间（毫秒）
+  cache-ttl: 3600  # 缓存有效期（秒）
+
 # AI服务配置（示例，具体根据实际的AI服务进行配置）
 #ai:
 #  service:

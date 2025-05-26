@@ -51,8 +51,7 @@ public class ArticleController extends BaseController {
     public ResponseEntity<ApiResponse> getLatestArticles(
             @Parameter(description = "页码") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
-        // 暂时移除认证要求，用于测试
-        String userId = null; // getCurrentUserId();
+        String userId = getCurrentUserId();
         List<ArticleDTO> articles = rssFeedService.getLatestArticlesForUser(userId, page, size);
         return ResponseEntity.ok(ApiResponse.success(articles));
     }
@@ -89,9 +88,28 @@ public class ArticleController extends BaseController {
             if (content == null || content.trim().isEmpty()) {
                 // 如果没有HTML内容，尝试获取纯文本内容
                 content = article.getPlainTextContent();
+                
+                // 如果还是没有内容，尝试直接从数据库获取完整内容
                 if (content == null || content.trim().isEmpty()) {
-                    log.warn("文章内容为空: {}", articleId);
-                    return ResponseEntity.ok(ApiResponse.error("文章内容为空"));
+                    log.warn("文章内容为空，尝试直接获取完整内容: {}", articleId);
+                    content = articleFetchService.getArticleFullContent(articleId);
+                    
+                    // 如果依然为空，尝试触发重新解析
+                    if (content == null || content.trim().isEmpty()) {
+                        log.warn("直接获取内容也为空，尝试重新解析: {}", articleId);
+                        boolean parseSuccess = articleFetchService.parseArticleContent(articleId);
+                        
+                        if (parseSuccess) {
+                            log.info("重新解析成功，再次获取内容");
+                            content = articleFetchService.getArticleFullContent(articleId);
+                        }
+                        
+                        // 如果仍然为空，返回错误
+                        if (content == null || content.trim().isEmpty()) {
+                            log.error("无法获取文章内容，所有尝试均失败: {}", articleId);
+                            return ResponseEntity.ok(ApiResponse.error("文章内容为空"));
+                        }
+                    }
                 }
             }
             
@@ -104,6 +122,28 @@ public class ArticleController extends BaseController {
                 } catch (Exception e) {
                     log.warn("字符编码处理异常: {}", e.getMessage());
                 }
+            }
+            
+            // 检查内容是否为XML格式，如果是则尝试提取实际内容
+            if (content != null && (content.startsWith("<?xml") || content.contains("<rss"))) {
+                log.info("检测到可能的XML格式内容，尝试提取实际内容");
+                try {
+                    // 使用文章服务中的处理方法提取内容
+                    boolean parseSuccess = articleFetchService.parseArticleContent(articleId);
+                    if (parseSuccess) {
+                        // 重新获取处理后的内容
+                        content = articleFetchService.getArticleFullContent(articleId);
+                        log.info("从XML中提取内容成功，新内容长度: {}", content != null ? content.length() : 0);
+                    }
+                } catch (Exception e) {
+                    log.warn("尝试提取XML内容时出错: {}", e.getMessage());
+                }
+            }
+            
+            // 最终内容检查
+            if (content == null || content.trim().isEmpty()) {
+                log.error("所有尝试后文章内容仍为空: {}", articleId);
+                return ResponseEntity.ok(ApiResponse.error("文章内容为空"));
             }
             
             // 构建响应数据
@@ -197,91 +237,6 @@ public class ArticleController extends BaseController {
         } catch (Exception e) {
             log.error("获取文章详情失败: {}", e.getMessage(), e);
             return ResponseEntity.ok(ApiResponse.error("获取文章详情失败"));
-        }
-    }
-    
-    /**
-     * 手动触发RSS源抓取（测试用）
-     * 
-     * @param sourceId RSS源ID
-     * @return 抓取结果
-     */
-    @PostMapping("/fetch-rss/{sourceId}")
-    @Operation(summary = "手动触发RSS抓取", description = "手动触发指定RSS源的文章抓取")
-    public ResponseEntity<ApiResponse> fetchRssSource(
-            @Parameter(description = "RSS源ID") @PathVariable String sourceId) {
-        try {
-            log.info("手动触发RSS源抓取: sourceId={}", sourceId);
-            
-            int fetchedCount = articleFetchService.fetchArticlesFromSourceById(sourceId);
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("sourceId", sourceId);
-            response.put("fetchedCount", fetchedCount);
-            response.put("message", String.format("成功抓取 %d 篇文章", fetchedCount));
-            
-            return ResponseEntity.ok(ApiResponse.success(response));
-            
-        } catch (Exception e) {
-            log.error("手动触发RSS源抓取失败: sourceId={}, error={}", sourceId, e.getMessage(), e);
-            return ResponseEntity.ok(ApiResponse.error("RSS抓取失败: " + e.getMessage()));
-        }
-    }
-    
-    /**
-     * 获取所有文章列表（测试用）
-     * 
-     * @param page 页码
-     * @param size 每页大小
-     * @return 文章列表
-     */
-    @GetMapping("/all")
-    @Operation(summary = "获取所有文章", description = "获取系统中的所有文章（测试用）")
-    public ResponseEntity<ApiResponse> getAllArticles(
-            @Parameter(description = "页码") @RequestParam(defaultValue = "0") int page,
-            @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
-        try {
-            log.info("获取所有文章列表: page={}, size={}", page, size);
-            
-            // 这里可以调用一个获取所有文章的方法
-            List<ArticleDTO> articles = rssFeedService.getLatestArticlesForUser(null, page, size);
-            
-            Map<String, Object> response = new HashMap<>();
-            response.put("articles", articles);
-            response.put("page", page);
-            response.put("size", size);
-            response.put("total", articles.size());
-            
-            return ResponseEntity.ok(ApiResponse.success(response));
-            
-        } catch (Exception e) {
-            log.error("获取所有文章列表失败: error={}", e.getMessage(), e);
-            return ResponseEntity.ok(ApiResponse.error("获取文章列表失败: " + e.getMessage()));
-        }
-    }
-    
-    /**
-     * 创建测试数据（测试用）
-     * 
-     * @return 创建结果
-     */
-    @PostMapping("/create-test-data")
-    @Operation(summary = "创建测试数据", description = "创建测试RSS源和文章数据")
-    public ResponseEntity<ApiResponse> createTestData() {
-        try {
-            log.info("开始创建测试数据");
-            
-            // 这里可以创建一些测试用的RSS源和文章
-            // 由于这是测试接口，我们返回一个简单的响应
-            Map<String, Object> response = new HashMap<>();
-            response.put("message", "测试数据创建功能需要在RssSourceController中实现");
-            response.put("suggestion", "请先通过 /feeds 接口添加RSS源，然后通过 /articles/fetch-rss/{sourceId} 抓取文章");
-            
-            return ResponseEntity.ok(ApiResponse.success(response));
-            
-        } catch (Exception e) {
-            log.error("创建测试数据失败: error={}", e.getMessage(), e);
-            return ResponseEntity.ok(ApiResponse.error("创建测试数据失败: " + e.getMessage()));
         }
     }
 } 

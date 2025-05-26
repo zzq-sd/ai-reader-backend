@@ -2,6 +2,7 @@ package com.aireader.backend.service.impl;
 
 import com.aireader.backend.dto.NoteRequestDto;
 import com.aireader.backend.dto.NoteResponseDto;
+import com.aireader.backend.dto.PageResponseDto;
 import com.aireader.backend.dto.TagDto;
 import com.aireader.backend.model.jpa.ArticleMetadata;
 import com.aireader.backend.model.jpa.Note;
@@ -58,6 +59,7 @@ public class NoteServiceImpl implements NoteService {
                 .contentRichText(noteRequest.getContent())
                 .user(user)
                 .aiProcessingStatus("PENDING")
+                .tags(new HashSet<>()) // 显式初始化tags字段
                 .build();
         
         // 如果有关联文章，设置文章元数据
@@ -161,10 +163,10 @@ public class NoteServiceImpl implements NoteService {
      * @param userId 用户ID
      * @param page 页码
      * @param size 每页大小
-     * @return 笔记列表
+     * @return 分页的笔记列表
      */
     @Override
-    public List<NoteResponseDto> getUserNotes(String userId, int page, int size) {
+    public PageResponseDto<NoteResponseDto> getUserNotes(String userId, int page, int size) {
         User user = getUserById(userId);
         
         // 创建分页请求，按更新时间降序排序
@@ -173,10 +175,23 @@ public class NoteServiceImpl implements NoteService {
         // 查询用户的笔记
         Page<Note> notesPage = noteRepository.findByUser(user, pageable);
         
-        // 转换为DTO列表并返回
-        return notesPage.getContent().stream()
+        // 转换为DTO列表
+        List<NoteResponseDto> noteResponseDtos = notesPage.getContent().stream()
                 .map(this::convertToResponseDto)
                 .collect(Collectors.toList());
+        
+        // 构建分页响应
+        return PageResponseDto.<NoteResponseDto>builder()
+                .content(noteResponseDtos)
+                .totalElements(notesPage.getTotalElements())
+                .totalPages(notesPage.getTotalPages())
+                .size(notesPage.getSize())
+                .number(notesPage.getNumber())
+                .first(notesPage.isFirst())
+                .last(notesPage.isLast())
+                .empty(notesPage.isEmpty())
+                .numberOfElements(notesPage.getNumberOfElements())
+                .build();
     }
 
     /**
@@ -241,10 +256,10 @@ public class NoteServiceImpl implements NoteService {
      * @param userId 用户ID
      * @param page 页码
      * @param size 每页大小
-     * @return 笔记列表
+     * @return 分页的笔记列表
      */
     @Override
-    public List<NoteResponseDto> searchNotes(String keyword, String userId, int page, int size) {
+    public PageResponseDto<NoteResponseDto> searchNotes(String keyword, String userId, int page, int size) {
         User user = getUserById(userId);
         
         // 创建分页请求
@@ -253,10 +268,23 @@ public class NoteServiceImpl implements NoteService {
         // 搜索笔记
         Page<Note> notesPage = noteRepository.searchByUserAndKeyword(user, keyword, pageable);
         
-        // 转换为DTO列表并返回
-        return notesPage.getContent().stream()
+        // 转换为DTO列表
+        List<NoteResponseDto> noteResponseDtos = notesPage.getContent().stream()
                 .map(this::convertToResponseDto)
                 .collect(Collectors.toList());
+        
+        // 构建分页响应
+        return PageResponseDto.<NoteResponseDto>builder()
+                .content(noteResponseDtos)
+                .totalElements(notesPage.getTotalElements())
+                .totalPages(notesPage.getTotalPages())
+                .size(notesPage.getSize())
+                .number(notesPage.getNumber())
+                .first(notesPage.isFirst())
+                .last(notesPage.isLast())
+                .empty(notesPage.isEmpty())
+                .numberOfElements(notesPage.getNumberOfElements())
+                .build();
     }
 
     /**
@@ -383,6 +411,11 @@ public class NoteServiceImpl implements NoteService {
             }
         });
         
+        // 确保tags字段不为null
+        if (note.getTags() == null) {
+            note.setTags(new HashSet<>());
+        }
+        
         // 将新标签添加到笔记的标签集合中
         note.getTags().addAll(tags);
         
@@ -406,6 +439,11 @@ public class NoteServiceImpl implements NoteService {
         // 检查笔记是否存在且属于该用户
         Note note = noteRepository.findByIdAndUserId(noteId, userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "未找到笔记或无权操作"));
+        
+        // 确保tags字段不为null
+        if (note.getTags() == null) {
+            note.setTags(new HashSet<>());
+        }
         
         // 从笔记的标签集合中移除指定标签
         note.setTags(note.getTags().stream()
@@ -466,10 +504,14 @@ public class NoteServiceImpl implements NoteService {
             dto.setArticleTitle(note.getArticleMetadata().getTitle());
         }
         
-        // 提取标签名称
-        dto.setTags(note.getTags().stream()
-                .map(Tag::getName)
-                .collect(Collectors.toSet()));
+        // 提取标签名称，添加空值检查
+        if (note.getTags() != null) {
+            dto.setTags(note.getTags().stream()
+                    .map(Tag::getName)
+                    .collect(Collectors.toSet()));
+        } else {
+            dto.setTags(new HashSet<>());
+        }
         
         dto.setCreatedAt(note.getCreatedAt());
         dto.setUpdatedAt(note.getUpdatedAt());

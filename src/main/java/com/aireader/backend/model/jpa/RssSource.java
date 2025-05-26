@@ -45,9 +45,11 @@ public class RssSource {
     private String category;
     
     @Column(name = "is_public", nullable = false)
+    @Builder.Default
     private boolean isPublic = false;
     
     @Column(name = "active", nullable = false)
+    @Builder.Default
     private boolean active = true;
     
     @Column(name = "fetch_interval")
@@ -67,6 +69,17 @@ public class RssSource {
     
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+    
+    // RSSHub特定字段
+    @Column(name = "is_rsshub")
+    @Builder.Default
+    private Boolean isRsshub = false;
+    
+    @Column(name = "rsshub_route", length = 512)
+    private String rsshubRoute;
+    
+    @Column(name = "rsshub_instance", length = 255)
+    private String rsshubInstance;
     
     @PrePersist
     protected void onCreate() {

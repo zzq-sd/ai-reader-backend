@@ -1,7 +1,9 @@
 package com.aireader.backend.controller;
 
+import com.aireader.backend.controller.BaseController;
 import com.aireader.backend.dto.NoteRequestDto;
 import com.aireader.backend.dto.NoteResponseDto;
+import com.aireader.backend.dto.PageResponseDto;
 import com.aireader.backend.dto.TagDto;
 import com.aireader.backend.dto.common.ApiResponse;
 import com.aireader.backend.service.NoteService;
@@ -11,9 +13,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.validation.Valid;
@@ -107,11 +106,11 @@ public class NoteController extends BaseController {
      */
     @GetMapping
     @Operation(summary = "获取用户笔记", description = "获取当前用户的所有笔记")
-    public ResponseEntity<ApiResponse<List<NoteResponseDto>>> getUserNotes(
+    public ResponseEntity<ApiResponse<PageResponseDto<NoteResponseDto>>> getUserNotes(
             @Parameter(description = "页码") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
         String userId = getCurrentUserId();
-        List<NoteResponseDto> notes = noteService.getUserNotes(userId, page, size);
+        PageResponseDto<NoteResponseDto> notes = noteService.getUserNotes(userId, page, size);
         return ResponseEntity.ok(ApiResponse.success(notes));
     }
     
@@ -163,12 +162,12 @@ public class NoteController extends BaseController {
      */
     @GetMapping("/search")
     @Operation(summary = "搜索笔记", description = "根据关键词搜索笔记")
-    public ResponseEntity<ApiResponse<List<NoteResponseDto>>> searchNotes(
+    public ResponseEntity<ApiResponse<PageResponseDto<NoteResponseDto>>> searchNotes(
             @Parameter(description = "关键词") @RequestParam String keyword,
             @Parameter(description = "页码") @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "每页大小") @RequestParam(defaultValue = "20") int size) {
         String userId = getCurrentUserId();
-        List<NoteResponseDto> notes = noteService.searchNotes(keyword, userId, page, size);
+        PageResponseDto<NoteResponseDto> notes = noteService.searchNotes(keyword, userId, page, size);
         return ResponseEntity.ok(ApiResponse.success(notes));
     }
     
