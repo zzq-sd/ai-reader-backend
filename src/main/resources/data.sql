@@ -33,4 +33,17 @@ ALTER TABLE article_metadata
 ADD COLUMN reading_time_minutes INT DEFAULT NULL COMMENT '文章阅读时间（分钟）',
 ADD COLUMN category VARCHAR(100) DEFAULT NULL COMMENT '文章分类';
 
+-- 为zzq用户添加管理员角色（如果zzq用户存在的话）
+INSERT INTO user_roles (user_id, role_id)
+SELECT 
+  (SELECT id FROM users WHERE username = 'zzq' LIMIT 1),
+  2
+FROM dual
+WHERE EXISTS (SELECT 1 FROM users WHERE username = 'zzq')
+  AND NOT EXISTS (
+    SELECT 1 FROM user_roles ur
+    JOIN users u ON ur.user_id = u.id
+    WHERE u.username = 'zzq' AND ur.role_id = 2
+  );
+
 -- 在这里可以添加其他表结构更新 

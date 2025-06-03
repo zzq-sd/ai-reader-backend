@@ -4,6 +4,7 @@ import com.aireader.backend.dto.NoteRequestDto;
 import com.aireader.backend.dto.NoteResponseDto;
 import com.aireader.backend.dto.PageResponseDto;
 import com.aireader.backend.dto.TagDto;
+import com.aireader.backend.dto.NoteAnalysisResultDto;
 import com.aireader.backend.model.jpa.ArticleMetadata;
 import com.aireader.backend.model.jpa.Note;
 import com.aireader.backend.model.jpa.Tag;
@@ -12,8 +13,10 @@ import com.aireader.backend.repository.ArticleMetadataRepository;
 import com.aireader.backend.repository.NoteRepository;
 import com.aireader.backend.repository.TagRepository;
 import com.aireader.backend.repository.UserRepository;
+import com.aireader.backend.repository.mongo.NoteAnalysisResultRepository;
 import com.aireader.backend.service.NoteService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -22,6 +25,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import com.aireader.backend.config.RabbitMQConfig;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -29,18 +34,25 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Objects;
 
 /**
  * 笔记服务实现类
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class NoteServiceImpl implements NoteService {
 
     private final NoteRepository noteRepository;
     private final UserRepository userRepository;
     private final TagRepository tagRepository;
     private final ArticleMetadataRepository articleMetadataRepository;
+    private final RabbitTemplate rabbitTemplate;
+    private final NoteAnalysisResultRepository noteAnalysisResultRepository;
 
     /**
      * 创建笔记
@@ -78,6 +90,9 @@ public class NoteServiceImpl implements NoteService {
         // 保存笔记
         Note savedNote = noteRepository.save(note);
         
+        // 不再自动触发AI分析，改为用户手动分析
+        // triggerNoteAnalysisIfNeeded(savedNote);
+        
         // 转换为DTO并返回
         return convertToResponseDto(savedNote);
     }
@@ -92,36 +107,41 @@ public class NoteServiceImpl implements NoteService {
     @Override
     @Transactional
     public NoteResponseDto updateNote(String noteId, NoteRequestDto noteRequest, String userId) {
-        // 获取用户
-        User user = getUserById(userId);
-        
         // 获取要更新的笔记
-        Note note = noteRepository.findByIdAndUserId(noteId, userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "未找到笔记或无权操作"));
+        Note note = getNoteByIdAndUserId(noteId, userId);
         
-        // 更新笔记内容
+        // 更新基本信息
         note.setTitle(noteRequest.getTitle());
         note.setContentRichText(noteRequest.getContent());
+        note.setUpdatedAt(LocalDateTime.now());
         
-        // 如果文章ID发生变更，更新关联的文章元数据
-        if (noteRequest.getArticleId() != null) {
-            if (!noteRequest.getArticleId().isEmpty()) {
-                ArticleMetadata articleMetadata = articleMetadataRepository.findById(noteRequest.getArticleId())
-                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "未找到关联的文章"));
-                note.setArticleMetadata(articleMetadata);
-            } else {
-                note.setArticleMetadata(null); // 移除文章关联
-            }
+        // 更新关联文章
+        if (noteRequest.getArticleId() != null && !noteRequest.getArticleId().isEmpty()) {
+            ArticleMetadata articleMetadata = articleMetadataRepository.findById(noteRequest.getArticleId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "未找到关联的文章"));
+            note.setArticleMetadata(articleMetadata);
+        } else {
+            note.setArticleMetadata(null);
         }
         
-        // 如果标签列表存在，更新标签
+        // 更新标签
         if (noteRequest.getTags() != null) {
-            Set<Tag> tags = processTagsForNote(noteRequest.getTags(), user);
-            note.setTags(tags);
+            // 获取当前用户
+            User user = getUserById(userId);
+            
+            // 清空现有标签并添加新标签
+            note.getTags().clear();
+            if (!noteRequest.getTags().isEmpty()) {
+                Set<Tag> tags = processTagsForNote(noteRequest.getTags(), user);
+                note.getTags().addAll(tags);
+            }
         }
         
         // 保存更新后的笔记
         Note updatedNote = noteRepository.save(note);
+        
+        // 不再自动触发AI分析，改为用户手动分析
+        // triggerNoteAnalysisIfNeeded(updatedNote);
         
         // 转换为DTO并返回
         return convertToResponseDto(updatedNote);
@@ -540,5 +560,140 @@ public class NoteServiceImpl implements NoteService {
     private User getUserById(String userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "未找到用户: " + userId));
+    }
+
+    /**
+     * 触发笔记AI分析（如果需要）
+     * @param note 笔记对象
+     */
+    private void triggerNoteAnalysisIfNeeded(Note note) {
+        try {
+            // 检查笔记内容是否足够长以进行AI分析
+            if (note.getContentRichText() != null && 
+                note.getContentRichText().trim().length() >= 50) { // 至少50个字符
+                
+                log.info("触发笔记AI分析，笔记ID: {}, 内容长度: {}", 
+                        note.getId(), note.getContentRichText().length());
+                
+                // 发送到笔记分析队列
+                Map<String, Object> message = Map.of(
+                    "noteId", note.getId(),
+                    "userId", note.getUser().getId(),
+                    "timestamp", System.currentTimeMillis(),
+                    "contentLength", note.getContentRichText().length()
+                );
+                
+                rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.NOTE_EXCHANGE,
+                    RabbitMQConfig.NOTE_ANALYSIS_ROUTING_KEY,
+                    message
+                );
+                
+                log.info("笔记AI分析任务已提交到队列，笔记ID: {}", note.getId());
+            } else {
+                log.debug("笔记内容过短，跳过AI分析，笔记ID: {}", note.getId());
+            }
+        } catch (Exception e) {
+            log.error("提交笔记AI分析任务失败，笔记ID: " + note.getId(), e);
+            // 不抛出异常，避免影响笔记保存流程
+        }
+    }
+
+    /**
+     * 获取笔记的AI分析结果
+     * @param noteId 笔记ID
+     * @param userId 用户ID
+     * @return AI分析结果
+     */
+    public NoteAnalysisResultDto getNoteAnalysisResult(String noteId, String userId) {
+        // 验证笔记所有权
+        Note note = noteRepository.findByIdAndUserId(noteId, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "未找到笔记或无权访问"));
+        
+        // 查询分析结果
+        Optional<com.aireader.backend.model.mongo.NoteAnalysisResult> resultOpt = 
+                noteAnalysisResultRepository.findByNoteId(noteId);
+        
+        if (resultOpt.isPresent()) {
+            return convertToAnalysisResultDto(resultOpt.get());
+        } else {
+            // 返回空结果，表示尚未分析
+            return NoteAnalysisResultDto.builder()
+                    .noteId(noteId)
+                    .analysisStatus("PENDING")
+                    .message("笔记分析正在进行中，请稍后查看")
+                    .build();
+        }
+    }
+
+    /**
+     * 手动触发笔记重新分析
+     * @param noteId 笔记ID
+     * @param userId 用户ID
+     * @return 是否成功提交分析任务
+     */
+    public boolean reanalyzeNote(String noteId, String userId) {
+        try {
+            // 验证笔记所有权
+            Note note = noteRepository.findByIdAndUserId(noteId, userId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "未找到笔记或无权操作"));
+            
+            // 更新AI处理状态
+            note.setAiProcessingStatus("PENDING");
+            noteRepository.save(note);
+            
+            // 强制触发AI分析
+            Map<String, Object> message = Map.of(
+                "noteId", noteId,
+                "userId", userId,
+                "timestamp", System.currentTimeMillis(),
+                "forceReanalyze", true
+            );
+            
+            rabbitTemplate.convertAndSend(
+                RabbitMQConfig.NOTE_EXCHANGE,
+                RabbitMQConfig.NOTE_ANALYSIS_ROUTING_KEY,
+                message
+            );
+            
+            log.info("手动触发笔记重新分析，笔记ID: {}", noteId);
+            return true;
+        } catch (Exception e) {
+            log.error("手动触发笔记重新分析失败，笔记ID: " + noteId, e);
+            return false;
+        }
+    }
+
+    /**
+     * 转换MongoDB分析结果为DTO
+     * @param mongoResult MongoDB分析结果
+     * @return 分析结果DTO
+     */
+    private NoteAnalysisResultDto convertToAnalysisResultDto(
+            com.aireader.backend.model.mongo.NoteAnalysisResult mongoResult) {
+        return NoteAnalysisResultDto.builder()
+                .noteId(mongoResult.getNoteId())
+                .userId(mongoResult.getUserId())
+                .enhancedSummary(mongoResult.getEnhancedSummary())
+                .keyPoints(mongoResult.getKeyPoints() != null ? 
+                          Arrays.asList(mongoResult.getKeyPoints()) : Collections.emptyList())
+                .intelligentTags(mongoResult.getIntelligentTags() != null ? 
+                               Arrays.asList(mongoResult.getIntelligentTags()) : Collections.emptyList())
+                .sentimentAnalysis(mongoResult.getSentimentAnalysis())
+                .analysisVersion(mongoResult.getAnalysisVersion())
+                .analyzedAt(mongoResult.getAnalyzedAt())
+                .analysisStatus("COMPLETED")
+                .build();
+    }
+
+    /**
+     * 根据ID和用户ID获取笔记
+     * @param noteId 笔记ID
+     * @param userId 用户ID
+     * @return 笔记对象
+     */
+    private Note getNoteByIdAndUserId(String noteId, String userId) {
+        return noteRepository.findByIdAndUserId(noteId, userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "未找到笔记或无权操作"));
     }
 } 

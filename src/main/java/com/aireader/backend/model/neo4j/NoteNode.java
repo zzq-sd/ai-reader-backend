@@ -1,5 +1,6 @@
 package com.aireader.backend.model.neo4j;
 
+import com.aireader.backend.model.constant.Neo4jRelationshipTypes;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -32,13 +33,19 @@ public class NoteNode {
     private String userId; // 对应MySQL中用户ID
     
     /**
-     * 设置ID
-     * @param id ID字符串
+     * 设置MySQL ID
+     * @param mysqlId MySQL数据库中的ID字符串
      */
-    public void setId(String id) {
-        if (id != null) {
-            this.mysqlId = id;
-        }
+    public void setMysqlId(String mysqlId) {
+        this.mysqlId = mysqlId;
+    }
+    
+    /**
+     * 获取MySQL ID
+     * @return MySQL数据库中的ID字符串
+     */
+    public String getMysqlId() {
+        return this.mysqlId;
     }
     
     /**
@@ -62,20 +69,20 @@ public class NoteNode {
     private LocalDateTime updatedAt;
     
     // 笔记与文章的关联
-    @Relationship(type = "REFERS_TO", direction = Relationship.Direction.OUTGOING)
+    @Relationship(type = Neo4jRelationshipTypes.NOTE_REFERS_TO, direction = Relationship.Direction.OUTGOING)
     private ArticleNode article;
     
     // 笔记的创建者
-    @Relationship(type = "CREATED_BY", direction = Relationship.Direction.OUTGOING)
+    @Relationship(type = Neo4jRelationshipTypes.NOTE_CREATED_BY, direction = Relationship.Direction.OUTGOING)
     private UserNode user;
     
-    // 笔记中提到的概念
-    @Relationship(type = "MENTIONS", direction = Relationship.Direction.OUTGOING)
+    // 笔记中提到的概念 - 支持多种关系类型
+    @Relationship(type = Neo4jRelationshipTypes.NOTE_CONTAINS_CONCEPT, direction = Relationship.Direction.OUTGOING)
     @Builder.Default
     private Set<NoteConceptRelationship> concepts = new HashSet<>();
     
     // 笔记的标签
-    @Relationship(type = "TAGGED", direction = Relationship.Direction.OUTGOING)
+    @Relationship(type = Neo4jRelationshipTypes.NOTE_TAGGED, direction = Relationship.Direction.OUTGOING)
     @Builder.Default
     private Set<NoteTagRelationship> tags = new HashSet<>();
     
@@ -90,7 +97,24 @@ public class NoteNode {
         if (concepts == null) {
             concepts = new HashSet<>();
         }
-        NoteConceptRelationship relationship = new NoteConceptRelationship(this, concept, relevanceScore);
+        NoteConceptRelationship relationship = new NoteConceptRelationship(concept, relevanceScore);
+        concepts.add(relationship);
+        return this;
+    }
+    
+    /**
+     * 添加与概念的关系（带关系类型）
+     * 
+     * @param concept 概念节点
+     * @param relevanceScore 相关性分数
+     * @param relationshipType 关系类型
+     * @return 当前笔记节点
+     */
+    public NoteNode addConcept(ConceptNode concept, Double relevanceScore, String relationshipType) {
+        if (concepts == null) {
+            concepts = new HashSet<>();
+        }
+        NoteConceptRelationship relationship = new NoteConceptRelationship(concept, relevanceScore, relationshipType);
         concepts.add(relationship);
         return this;
     }

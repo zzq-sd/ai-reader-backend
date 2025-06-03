@@ -1,80 +1,153 @@
 package com.aireader.backend.controller;
 
-import com.aireader.backend.model.jpa.Role;
-import com.aireader.backend.model.jpa.User;
-import com.aireader.backend.repository.RoleRepository;
-import com.aireader.backend.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.aireader.backend.dto.GraphDataDTO;
+import com.aireader.backend.dto.common.ApiResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 测试控制器
- * 用于验证数据库配置和基本功能
- * 仅在开发环境中使用
  */
 @RestController
-@RequestMapping("/test")
+@RequestMapping("/api/v1/test")
+@Slf4j
 public class TestController {
-    
-    @Autowired
-    private UserRepository userRepository;
-    
-    @Autowired
-    private RoleRepository roleRepository;
-    
+
     /**
-     * 测试数据库连接和数据
-     * 
-     * @return 测试结果
+     * 获取测试图谱数据
      */
-    @GetMapping("/db")
-    public ResponseEntity<Map<String, Object>> testDatabase() {
-        Map<String, Object> response = new HashMap<>();
-        try {
-            // 测试MySQL连接
-            long userCount = userRepository.count();
-            long roleCount = roleRepository.count();
-            
-            response.put("status", "success");
-            response.put("mysqlConnection", "ok");
-            response.put("userCount", userCount);
-            response.put("roleCount", roleCount);
-            
-            // 获取管理员用户信息（如果存在）
-            userRepository.findByUsername("admin").ifPresent(admin -> {
-                Map<String, Object> adminInfo = new HashMap<>();
-                adminInfo.put("id", admin.getId());
-                adminInfo.put("email", admin.getEmail());
-                adminInfo.put("roles", admin.getRoles().stream().map(Role::getName).toArray());
-                response.put("adminUser", adminInfo);
-            });
-            
-            return ResponseEntity.ok(response);
-        } catch (Exception e) {
-            response.put("status", "error");
-            response.put("message", e.getMessage());
-            return ResponseEntity.status(500).body(response);
-        }
+    @GetMapping("/graph-data")
+    public ResponseEntity<ApiResponse<GraphDataDTO>> getTestGraphData() {
+        log.info("【测试】提供测试图谱数据");
+        return ResponseEntity.ok(ApiResponse.success(createTestGraphData()));
     }
-    
+
     /**
-     * 测试安全配置
-     * 
-     * @return 测试结果
+     * 简单测试端点
      */
-    @GetMapping("/secured")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Map<String, Object>> testSecured() {
-        Map<String, Object> response = new HashMap<>();
-        response.put("status", "success");
-        response.put("message", "您已成功访问需要管理员权限的资源");
-        return ResponseEntity.ok(response);
+    @GetMapping("/ping")
+    public ResponseEntity<String> ping() {
+        return ResponseEntity.ok("Test API is working!");
+    }
+
+    // 创建测试图谱数据
+    private GraphDataDTO createTestGraphData() {
+        List<GraphDataDTO.NodeDTO> nodes = new ArrayList<>();
+        List<GraphDataDTO.EdgeDTO> edges = new ArrayList<>();
+        
+        // 添加概念节点
+        for (int i = 1; i <= 10; i++) {
+            GraphDataDTO.NodeDTO conceptNode = GraphDataDTO.NodeDTO.builder()
+                    .id("concept_测试概念" + i)
+                    .label("测试概念" + i)
+                    .type("CONCEPT")
+                    .size(10.0 + i)
+                    .color("#9c27b0")
+                    .importance(0.6)
+                    .build();
+            nodes.add(conceptNode);
+        }
+        
+        // 添加文章节点
+        for (int i = 1; i <= 5; i++) {
+            GraphDataDTO.NodeDTO articleNode = GraphDataDTO.NodeDTO.builder()
+                    .id("article_" + i)
+                    .label("测试文章" + i)
+                    .type("ARTICLE")
+                    .size(15.0)
+                    .color("#2196f3")
+                    .importance(0.7)
+                    .build();
+            nodes.add(articleNode);
+        }
+        
+        // 添加笔记节点
+        for (int i = 1; i <= 3; i++) {
+            GraphDataDTO.NodeDTO noteNode = GraphDataDTO.NodeDTO.builder()
+                    .id("note_" + i)
+                    .label("测试笔记" + i)
+                    .type("NOTE")
+                    .size(12.0)
+                    .color("#ff9800")
+                    .importance(0.5)
+                    .build();
+            nodes.add(noteNode);
+        }
+        
+        // 添加边 - 概念和文章之间
+        for (int i = 1; i <= 5; i++) {
+            for (int j = 1; j <= 3; j++) {
+                if (Math.random() > 0.3) {  // 随机添加部分关系
+                    GraphDataDTO.EdgeDTO edge = GraphDataDTO.EdgeDTO.builder()
+                            .id("edge_concept_article_" + i + "_" + j)
+                            .source("concept_测试概念" + i)
+                            .target("article_" + j)
+                            .label("MENTIONS")
+                            .type("MENTIONS")
+                            .weight(0.8)
+                            .color("#999999")
+                            .build();
+                    edges.add(edge);
+                }
+            }
+        }
+        
+        // 添加边 - 概念和笔记之间
+        for (int i = 6; i <= 10; i++) {
+            for (int j = 1; j <= 3; j++) {
+                if (Math.random() > 0.4) {  // 随机添加部分关系
+                    GraphDataDTO.EdgeDTO edge = GraphDataDTO.EdgeDTO.builder()
+                            .id("edge_concept_note_" + i + "_" + j)
+                            .source("concept_测试概念" + i)
+                            .target("note_" + j)
+                            .label("CONTAINS")
+                            .type("CONTAINS")
+                            .weight(0.7)
+                            .color("#999999")
+                            .build();
+                    edges.add(edge);
+                }
+            }
+        }
+        
+        // 添加边 - 概念和概念之间
+        for (int i = 1; i <= 5; i++) {
+            for (int j = 6; j <= 10; j++) {
+                if (Math.random() > 0.7) {  // 随机添加部分关系
+                    GraphDataDTO.EdgeDTO edge = GraphDataDTO.EdgeDTO.builder()
+                            .id("edge_concept_concept_" + i + "_" + j)
+                            .source("concept_测试概念" + i)
+                            .target("concept_测试概念" + j)
+                            .label("RELATED_TO")
+                            .type("RELATED_TO")
+                            .weight(0.6)
+                            .color("#999999")
+                            .build();
+                    edges.add(edge);
+                }
+            }
+        }
+        
+        // 创建统计信息
+        GraphDataDTO.StatisticsDTO statistics = GraphDataDTO.StatisticsDTO.builder()
+                .totalNodes(nodes.size())
+                .totalEdges(edges.size())
+                .articleCount((int)nodes.stream().filter(n -> "ARTICLE".equals(n.getType())).count())
+                .noteCount((int)nodes.stream().filter(n -> "NOTE".equals(n.getType())).count())
+                .conceptCount((int)nodes.stream().filter(n -> "CONCEPT".equals(n.getType())).count())
+                .avgConnectivity(nodes.isEmpty() ? 0.0 : (double) edges.size() / nodes.size())
+                .build();
+        
+        return GraphDataDTO.builder()
+                .nodes(nodes)
+                .edges(edges)
+                .statistics(statistics)
+                .build();
     }
 } 

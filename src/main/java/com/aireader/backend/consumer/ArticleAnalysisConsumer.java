@@ -3,6 +3,7 @@ package com.aireader.backend.consumer;
 import com.aireader.backend.ai.AiService;
 import com.aireader.backend.ai.ArticleAnalysisResult;
 import com.aireader.backend.config.RabbitMQConfig;
+import com.aireader.backend.config.KnowledgeGraphRabbitConfig;
 import com.aireader.backend.model.jpa.ArticleMetadata;
 import com.aireader.backend.model.mongo.ArticleContent;
 import com.aireader.backend.repository.ArticleMetadataRepository;
@@ -89,6 +90,9 @@ public class ArticleAnalysisConsumer {
             // 更新文章元数据中的AI分析结果
             updateArticleWithAnalysisResult(metadata, analysisResult);
             
+            // 更新MongoDB中的文章内容处理信息
+            updateArticleContentProcessingInfo(content, analysisResult);
+            
             // 将分析结果发送到知识图谱更新队列
             sendToKnowledgeGraphUpdateQueue(articleId, "article");
             
@@ -140,6 +144,48 @@ public class ArticleAnalysisConsumer {
     }
     
     /**
+     * 更新MongoDB中的文章内容处理信息
+     *
+     * @param content 文章内容
+     * @param result AI分析结果
+     */
+    private void updateArticleContentProcessingInfo(ArticleContent content, ArticleAnalysisResult result) {
+        try {
+            // 创建或更新处理信息
+            ArticleContent.ArticleProcessingInfo processingInfo = content.getProcessingInfo();
+            if (processingInfo == null) {
+                processingInfo = ArticleContent.ArticleProcessingInfo.builder().build();
+            }
+            
+            // 更新AI分析结果
+            processingInfo.setEnhancedSummary(result.getSummary());
+            processingInfo.setKeyPoints(result.getKeyPoints().toArray(new String[0]));
+            processingInfo.setIntelligentTags(result.getIntelligentTags().toArray(new String[0]));
+            processingInfo.setSentimentAnalysis(result.getSentiment());
+            processingInfo.setAnalysisVersion("1.0.0");
+            processingInfo.setLastAnalyzedAt(java.time.LocalDateTime.now());
+            
+                    // 转换概念实体
+        ArticleAnalysisResult.ConceptEntity[] conceptEntities =
+                result.getConcepts().stream()
+                        .toArray(ArticleAnalysisResult.ConceptEntity[]::new);
+            processingInfo.setExtractedConcepts(conceptEntities);
+            
+            // 更新传统字段以保持兼容性
+            processingInfo.setExtractedKeywords(result.getKeywords().toArray(new String[0]));
+            processingInfo.setReadingTimeMinutes(result.getReadingTimeMinutes());
+            
+            // 设置处理信息并保存
+            content.setProcessingInfo(processingInfo);
+            articleContentRepository.save(content);
+            
+            log.info("更新文章内容处理信息成功, articleId={}", content.getMysqlMetadataId());
+        } catch (Exception e) {
+            log.error("更新文章内容处理信息失败, articleId=" + content.getMysqlMetadataId(), e);
+        }
+    }
+    
+    /**
      * 发送消息到知识图谱更新队列
      *
      * @param entityId 实体ID
@@ -153,8 +199,8 @@ public class ArticleAnalysisConsumer {
             );
             
             rabbitTemplate.convertAndSend(
-                RabbitMQConfig.KNOWLEDGE_EXCHANGE,
-                RabbitMQConfig.KNOWLEDGE_GRAPH_UPDATE_ROUTING_KEY,
+                KnowledgeGraphRabbitConfig.KNOWLEDGE_GRAPH_EXCHANGE,
+                KnowledgeGraphRabbitConfig.KNOWLEDGE_GRAPH_UPDATE_ROUTING_KEY,
                 message
             );
             

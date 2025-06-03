@@ -33,6 +33,11 @@ public class NoteAnalysisResult {
     private List<Map<String, Object>> entities;
 
     /**
+     * 用户ID
+     */
+    private String userId;
+
+    /**
      * 笔记主题
      */
     private String topic;
@@ -45,5 +50,20 @@ public class NoteAnalysisResult {
     /**
      * 相关概念列表
      */
-    private List<String> relatedConcepts;
+    private List<ArticleAnalysisResult.ConceptEntity> extractedConcepts;
+    
+    /**
+     * 智能标签
+     */
+    private List<String> intelligentTags;
+    
+    /**
+     * AI摘要
+     */
+    private String enhancedSummary;
+    
+    /**
+     * 情感分析
+     */
+    private String sentimentAnalysis;
 } 

@@ -5,55 +5,222 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="2347abef-6192-4459-ac90-1eefe078e43f" name="更改" comment="rss源订阅成功版本">
+      <change beforePath="$PROJECT_DIR$/.idea/compiler.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/jarRepositories.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/jarRepositories.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/ARTICLE_CONTENT_FIX_GUIDE.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Spring-AI开发文档.md" beforeDir="false" afterPath="$PROJECT_DIR$/Spring-AI开发文档.md" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/api-docs.md" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/app.log" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend.log" beforeDir="false" />
       <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/server.log" beforeDir="false" afterPath="$PROJECT_DIR$/server.log" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/AIReaderBackendApplication.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/AIReaderBackendApplication.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/ai/AiServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/ai/AiServiceImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/ai/ArticleAnalysisResult.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/ai/ArticleAnalysisResult.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/ai/NoteAnalysisResult.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/ai/NoteAnalysisResult.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/config/AiConfig.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/config/RabbitMQConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/config/RabbitMQConfig.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/config/RedisConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/config/RedisConfig.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/config/SecurityConfig.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/config/SecurityConfig.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/controller/ArticleController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/controller/ArticleController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/controller/NoteController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/controller/NoteController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/controller/RssSourceController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/controller/RssSourceController.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/dto/ArticleDTO.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/dto/ArticleDTO.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/dto/RssSourceDTO.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/dto/RssSourceDTO.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/model/jpa/ArticleMetadata.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/model/jpa/ArticleMetadata.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/model/jpa/RssSource.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/model/jpa/RssSource.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/repository/ArticleMetadataRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/repository/ArticleMetadataRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/repository/RssSourceRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/repository/RssSourceRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/repository/UserArticleInteractionRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/repository/UserArticleInteractionRepository.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/repository/mongo/ArticleContentRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/repository/mongo/ArticleContentRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/consumer/ArticleAnalysisConsumer.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/consumer/ArticleAnalysisConsumer.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/consumer/KnowledgeGraphConsumer.java" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/controller/KnowledgeController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/controller/KnowledgeController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/controller/TestController.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/controller/TestController.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/model/mongo/ArticleContent.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/model/mongo/ArticleContent.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/model/neo4j/ArticleConceptRelationship.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/model/neo4j/ArticleConceptRelationship.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/model/neo4j/NoteConceptRelationship.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/model/neo4j/NoteConceptRelationship.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/model/neo4j/NoteNode.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/model/neo4j/NoteNode.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/repository/RoleRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/repository/RoleRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/repository/neo4j/ArticleConceptRelationshipRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/repository/neo4j/ArticleConceptRelationshipRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/repository/neo4j/ConceptNodeRepository.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/repository/neo4j/ConceptNodeRepository.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/service/CustomUserDetailsService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/service/CustomUserDetailsService.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/service/KnowledgeService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/service/KnowledgeService.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/service/NoteService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/service/NoteService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/service/RssFeedService.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/service/RssFeedService.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/service/impl/ArticleFetchServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/service/impl/ArticleFetchServiceImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/service/impl/KnowledgeServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/service/impl/KnowledgeServiceImpl.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/service/impl/NoteServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/service/impl/NoteServiceImpl.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/service/impl/RssFeedServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/service/impl/RssFeedServiceImpl.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/java/com/aireader/backend/service/impl/UserServiceImpl.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/aireader/backend/service/impl/UserServiceImpl.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main/resources/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/application.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/application.yml" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/application.yml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/config/SecurityConfig.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/config/SecurityConfig.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/controller/ArticleController.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/controller/ArticleController.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/controller/NoteController.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/controller/NoteController.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/controller/RssSourceController.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/controller/RssSourceController.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/ArticleDTO$ArticleDTOBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/ArticleDTO$ArticleDTOBuilder.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/ArticleDTO$ConceptDTO$ConceptDTOBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/ArticleDTO$ConceptDTO$ConceptDTOBuilder.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/ArticleDTO$ConceptDTO.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/ArticleDTO$ConceptDTO.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/ArticleDTO$RelatedArticleDTO$RelatedArticleDTOBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/ArticleDTO$RelatedArticleDTO$RelatedArticleDTOBuilder.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/ArticleDTO$RelatedArticleDTO.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/ArticleDTO$RelatedArticleDTO.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/ArticleDTO.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/ArticleDTO.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/RssSourceDTO$RssSourceDTOBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/RssSourceDTO$RssSourceDTOBuilder.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/RssSourceDTO.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/RssSourceDTO.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/ArticleMetadata$ArticleMetadataBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/ArticleMetadata$ArticleMetadataBuilder.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/ArticleMetadata.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/ArticleMetadata.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/RssSource$RssSourceBuilder.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/RssSource$RssSourceBuilder.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/RssSource.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/RssSource.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/ArticleMetadataRepository.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/ArticleMetadataRepository.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/RssSourceRepository.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/RssSourceRepository.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/UserArticleInteractionRepository.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/UserArticleInteractionRepository.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/mongo/ArticleContentRepository.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/mongo/ArticleContentRepository.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/NoteService.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/NoteService.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/RssFeedService.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/RssFeedService.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/impl/ArticleFetchServiceImpl.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/impl/ArticleFetchServiceImpl.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/impl/NoteServiceImpl.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/impl/NoteServiceImpl.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/impl/RssFeedServiceImpl.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/impl/RssFeedServiceImpl.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst" beforeDir="false" afterPath="$PROJECT_DIR$/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst" beforeDir="false" afterPath="$PROJECT_DIR$/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/maven-status/maven-compiler-plugin/testCompile/default-testCompile/inputFiles.lst" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/main/resources/data.sql" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/resources/data.sql" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/application.yml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/AIReaderBackendApplication.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/ai/AiService.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/ai/AiServiceImpl.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/ai/ArticleAnalysisResult$ArticleAnalysisResultBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/ai/ArticleAnalysisResult.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/ai/NoteAnalysisResult$NoteAnalysisResultBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/ai/NoteAnalysisResult.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/config/AiConfig.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/config/AppConfig.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/config/DatabaseConfig.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/config/DatabaseStartupValidator.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/config/MongoConfig.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/config/Neo4jDriverConfig.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/config/Neo4jIndexAndConstraintConfig.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/config/RabbitMQConfig.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/config/RedisConfig.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/config/RestTemplateConfig.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/config/SecurityConfig.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/config/WebMvcConfig.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/consumer/ArticleAnalysisConsumer.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/consumer/KnowledgeGraphConsumer.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/consumer/RssFetchConsumer.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/controller/ArticleController.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/controller/AuthController.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/controller/BaseController.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/controller/FavoriteController.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/controller/KnowledgeController.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/controller/NoteController.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/controller/ReadStatusController.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/controller/RssSourceController.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/controller/TestController.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/ArticleContentDto$ArticleContentDtoBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/ArticleContentDto.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/ArticleDTO$ArticleDTOBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/ArticleDTO$ConceptDTO$ConceptDTOBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/ArticleDTO$ConceptDTO.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/ArticleDTO$RelatedArticleDTO$RelatedArticleDTOBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/ArticleDTO$RelatedArticleDTO.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/ArticleDTO.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/GraphVisualizationDto$Edge$EdgeBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/GraphVisualizationDto$Edge.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/GraphVisualizationDto$GraphVisualizationDtoBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/GraphVisualizationDto$Node$NodeBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/GraphVisualizationDto$Node.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/GraphVisualizationDto.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/NoteRequestDto$NoteRequestDtoBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/NoteRequestDto.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/NoteResponseDto$NoteResponseDtoBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/NoteResponseDto.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/PageResponseDto$PageResponseDtoBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/PageResponseDto.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/RelatedItemDto$ItemType.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/RelatedItemDto$RelatedItemDtoBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/RelatedItemDto.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/RssSourceDTO$RssSourceDTOBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/RssSourceDTO.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/TagDto$TagDtoBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/TagDto.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/auth/JwtAuthenticationResponseDto$JwtAuthenticationResponseDtoBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/auth/JwtAuthenticationResponseDto.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/auth/LoginRequestDto.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/auth/UserRegistrationRequestDto.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/auth/UserResponseDto$UserResponseDtoBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/auth/UserResponseDto.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/dto/common/ApiResponse.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/exception/APIException.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/exception/BusinessException.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/exception/GlobalExceptionHandler.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/exception/NotFoundException.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/constant/Permissions.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/constant/UserRole.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/ArticleMetadata$ArticleMetadataBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/ArticleMetadata.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/ArticleTag$ArticleTagBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/ArticleTag$ArticleTagId.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/ArticleTag.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/Note$NoteBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/Note.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/Role.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/RssSource$RssSourceBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/RssSource.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/Tag$TagBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/Tag.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/User$UserBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/User.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/UserArticleInteraction$UserArticleInteractionBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/UserArticleInteraction$UserArticleInteractionId.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/jpa/UserArticleInteraction.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/mongo/ArticleContent$ArticleContentBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/mongo/ArticleContent$ArticleProcessingInfo$ArticleProcessingInfoBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/mongo/ArticleContent$ArticleProcessingInfo.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/mongo/ArticleContent.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/ArticleConceptRelationship$ArticleConceptRelationshipBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/ArticleConceptRelationship.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/ArticleNode$ArticleNodeBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/ArticleNode.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/AuthorRelationship$AuthorRelationshipBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/AuthorRelationship.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/ConceptConceptRelationship$ConceptConceptRelationshipBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/ConceptConceptRelationship.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/ConceptNode$ConceptNodeBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/ConceptNode.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/ConceptRelationship$ConceptRelationshipBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/ConceptRelationship.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/NoteConceptRelationship$NoteConceptRelationshipBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/NoteConceptRelationship.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/NoteNode$NoteNodeBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/NoteNode.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/NoteTagRelationship$NoteTagRelationshipBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/NoteTagRelationship.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/RssSourceNode$RssSourceNodeBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/RssSourceNode.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/TagConceptRelationship$TagConceptRelationshipBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/TagConceptRelationship.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/TagNode$TagNodeBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/TagNode.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/TagRelationship$TagRelationshipBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/TagRelationship.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/UserArticleRelationship$UserArticleRelationshipBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/UserArticleRelationship.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/UserConceptRelationship$UserConceptRelationshipBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/UserConceptRelationship.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/UserNode$UserNodeBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/UserNode.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/UserUserRelationship$UserUserRelationshipBuilder.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/neo4j/UserUserRelationship.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/model/security/CustomUserDetails.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/ArticleMetadataRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/ArticleTagRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/NoteRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/RoleRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/RssSourceRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/TagRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/UserArticleInteractionRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/UserRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/mongo/ArticleContentRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/neo4j/ArticleConceptRelationshipRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/neo4j/ArticleNodeRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/neo4j/AuthorRelationshipRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/neo4j/ConceptConceptRelationshipRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/neo4j/ConceptNodeRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/neo4j/ConceptRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/neo4j/NoteNodeRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/neo4j/TagNodeRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/neo4j/UserConceptRelationshipRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/neo4j/UserNodeRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/repository/neo4j/UserUserRelationshipRepository.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/security/JwtAuthenticationFilter.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/security/JwtTokenProvider.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/security/PermissionEvaluator.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/ArticleFetchService.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/AuthService.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/CustomUserDetailsService.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/FavoriteService.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/KnowledgeService.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/NoteService.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/ReadStatusService.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/RssFeedService.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/UserService.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/impl/ArticleFetchServiceImpl.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/impl/AuthServiceImpl.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/impl/FavoriteServiceImpl.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/impl/KnowledgeServiceImpl.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/impl/NoteServiceImpl.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/impl/ReadStatusServiceImpl.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/impl/RssFeedServiceImpl.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/service/impl/UserServiceImpl.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/test/EncodingTestController.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/util/Neo4jConnectionTest.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/util/RsshubUtil.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/aireader/backend/util/TextEncodingUtil.class" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/data.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/data.sql.bak" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/db/migration/V10__add_active_field_to_rss_sources.sql" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/后续模块分析报告.md" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -78,6 +245,9 @@
     &quot;accountId&quot;: &quot;0bdb452c-a5e7-4746-a6ba-91972b583da6&quot;
   }
 }</component>
+  <component name="HighlightingSettingsPerFile">
+    <setting file="jar://$MAVEN_REPOSITORY$/org/neo4j/driver/neo4j-java-driver/4.4.12/neo4j-java-driver-4.4.12.jar!/org/neo4j/driver/exceptions/ServiceUnavailableException.class" root0="SKIP_INSPECTION" />
+  </component>
   <component name="KubernetesApiPersistence">{}</component>
   <component name="KubernetesApiProvider">{
   &quot;isMigrated&quot;: true
@@ -99,6 +269,8 @@
   &quot;keyToString&quot;: {
     &quot;ASKED_SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
     &quot;Maven.ai-reader-backend [clean:clean].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.ai-reader-backend [clean:help].executor&quot;: &quot;Run&quot;,
+    &quot;Maven.ai-reader-backend [clean].executor&quot;: &quot;Run&quot;,
     &quot;Maven.ai-reader-backend [install:install].executor&quot;: &quot;Run&quot;,
     &quot;Maven.ai-reader-backend [org.apache.maven.plugins:maven-clean-plugin:3.2.0:clean].executor&quot;: &quot;Run&quot;,
     &quot;Maven.ai-reader-backend [org.apache.maven.plugins:maven-clean-plugin:3.3.2:clean].executor&quot;: &quot;Run&quot;,
@@ -172,7 +344,7 @@
     </option>
     <option name="openRunningConfigInTab" value="true" />
   </component>
-  <component name="RunManager" selected="Spring Boot.未命名">
+  <component name="RunManager" selected="Maven.ai-reader-backend [clean:clean]">
     <configuration name="ai-reader-backend [clean:clean]" type="MavenRunConfiguration" factoryName="Maven" temporary="true">
       <MavenSettings>
         <option name="myGeneralSettings" />
@@ -186,6 +358,36 @@
             <option name="goals">
               <list>
                 <option value="clean:clean" />
+              </list>
+            </option>
+            <option name="multimoduleDir" />
+            <option name="pomFileName" value="pom.xml" />
+            <option name="profilesMap">
+              <map />
+            </option>
+            <option name="projectsCmdOptionValues">
+              <list />
+            </option>
+            <option name="resolveToWorkspace" value="false" />
+            <option name="workingDirPath" value="$PROJECT_DIR$" />
+          </MavenRunnerParameters>
+        </option>
+      </MavenSettings>
+      <method v="2" />
+    </configuration>
+    <configuration name="ai-reader-backend [clean:help]" type="MavenRunConfiguration" factoryName="Maven" temporary="true">
+      <MavenSettings>
+        <option name="myGeneralSettings" />
+        <option name="myRunnerSettings" />
+        <option name="myRunnerParameters">
+          <MavenRunnerParameters>
+            <option name="cmdOptions" />
+            <option name="profiles">
+              <set />
+            </option>
+            <option name="goals">
+              <list>
+                <option value="clean:help" />
               </list>
             </option>
             <option name="multimoduleDir" />
@@ -224,14 +426,16 @@
       </method>
     </configuration>
     <list>
+      <item itemvalue="Maven.ai-reader-backend [clean:help]" />
       <item itemvalue="Maven.ai-reader-backend [clean:clean]" />
       <item itemvalue="Spring Boot.未命名" />
       <item itemvalue="Spring Boot.AIReaderBackendApplication" />
     </list>
     <recent_temporary>
       <list>
-        <item itemvalue="Spring Boot.AIReaderBackendApplication" />
         <item itemvalue="Maven.ai-reader-backend [clean:clean]" />
+        <item itemvalue="Spring Boot.AIReaderBackendApplication" />
+        <item itemvalue="Maven.ai-reader-backend [clean:help]" />
       </list>
     </recent_temporary>
   </component>
@@ -261,7 +465,13 @@
       <workItem from="1748006458320" duration="20000" />
       <workItem from="1748006488306" duration="9589000" />
       <workItem from="1748098548072" duration="27659000" />
-      <workItem from="1748174696492" duration="13485000" />
+      <workItem from="1748174696492" duration="24008000" />
+      <workItem from="1748261583584" duration="64427000" />
+      <workItem from="1748656460260" duration="1610000" />
+      <workItem from="1748782001059" duration="40000" />
+      <workItem from="1748937899760" duration="44000" />
+      <workItem from="1748937949768" duration="24000" />
+      <workItem from="1748937975144" duration="23000" />
     </task>
     <task id="LOCAL-00001" summary="rss源订阅成功版本">
       <option name="closed" value="true" />
@@ -271,11 +481,38 @@
       <option name="project" value="LOCAL" />
       <updated>1748123127337</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="rss源订阅成功版本">
+      <option name="closed" value="true" />
+      <created>1748233922525</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1748233922525</updated>
+    </task>
+    <task id="LOCAL-00003" summary="rss源订阅成功版本">
+      <option name="closed" value="true" />
+      <created>1748233943069</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1748233943069</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="rss源订阅成功版本" />

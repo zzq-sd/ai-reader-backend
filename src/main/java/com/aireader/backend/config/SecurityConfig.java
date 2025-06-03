@@ -86,7 +86,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             // 无状态会话
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            // 授权请求
+            // 授权请求 - 特别注意顺序，更具体的规则应该在前面
             .authorizeHttpRequests(authorize -> authorize
                 // 公开访问的API端点
                 .requestMatchers("/auth/login", "/auth/register", "/auth/refresh", "/auth/check-username", "/auth/check-email").permitAll()
@@ -94,15 +94,28 @@ public class SecurityConfig {
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                 .requestMatchers("/error").permitAll()
                 
+                // AI测试端点 - 临时开放用于调试
+                .requestMatchers("/api/v1/test/ai/**").permitAll()
+                .requestMatchers("/test/knowledge/**").permitAll()
+                
+                // 知识图谱相关API - 完全公开访问用于调试
+                .requestMatchers("/api/v1/knowledge/graph-data").permitAll() // 特别放行图谱数据接口
+                .requestMatchers("/api/v1/knowledge/test").permitAll() // 放行测试接口
+                .requestMatchers("/api/v1/knowledge/test-neo4j").permitAll() // 放行Neo4j连接测试接口
+                .requestMatchers("/api/v1/knowledge/health").permitAll() // 放行健康检查接口
+                .requestMatchers("/api/v1/knowledge/**").permitAll() // 允许访问知识图谱数据
+                .requestMatchers("/api/knowledge/**").permitAll() // 允许访问知识图谱数据（旧版API路径）
+                .requestMatchers("/api/admin/knowledge/**").permitAll() // 临时放行管理员API用于调试
+                
                 // 用户管理相关API
                 .requestMatchers("/api/admin/users/**").hasRole("ADMIN")
                 
                 // RSS源相关API
-                .requestMatchers(HttpMethod.GET, "/api/rss/**").hasAnyRole("USER", "PREMIUM", "ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/rss/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/rss").hasAnyRole("USER", "PREMIUM", "ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/rss/**").hasAnyRole("USER", "PREMIUM", "ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/rss/**").hasAnyRole("USER", "PREMIUM", "ADMIN")
-                .requestMatchers("/api/admin/rss/**").hasRole("ADMIN")
+                .requestMatchers("/api/admin/rss/**").permitAll() // 临时放行
                 
                 // 文章相关API - 部分公开访问用于演示
                 .requestMatchers(HttpMethod.GET, "/articles/*/content").permitAll() // 允许查看文章内容
@@ -110,24 +123,27 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/articles/*/content").permitAll() // 带前缀的API
                 .requestMatchers(HttpMethod.GET, "/api/v1/articles/all").permitAll() // 允许获取文章列表
                 .requestMatchers(HttpMethod.GET, "/api/v1/articles/*").permitAll() // 带前缀的API
-                .requestMatchers(HttpMethod.GET, "/api/v1/articles/**").hasAnyRole("USER", "PREMIUM", "ADMIN")
-                .requestMatchers(HttpMethod.POST, "/api/v1/articles/**").hasAnyRole("ADMIN")
-                .requestMatchers(HttpMethod.PUT, "/api/v1/articles/**").hasAnyRole("ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/v1/articles/**").hasAnyRole("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/v1/articles/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/v1/articles/**").permitAll() // 临时放行
+                .requestMatchers(HttpMethod.PUT, "/api/v1/articles/**").permitAll() // 临时放行
+                .requestMatchers(HttpMethod.DELETE, "/api/v1/articles/**").permitAll() // 临时放行
                 
                 // 笔记相关API
-                .requestMatchers("/api/notes/**").hasAnyRole("USER", "PREMIUM", "ADMIN")
-                .requestMatchers("/api/admin/notes/**").hasRole("ADMIN")
+                .requestMatchers("/api/notes/**").permitAll() // 临时放行
+                .requestMatchers("/api/admin/notes/**").permitAll() // 临时放行
                 
                 // 收藏相关API
-                .requestMatchers("/api/favorites/**").hasAnyRole("USER", "PREMIUM", "ADMIN")
+                .requestMatchers("/api/favorites/**").permitAll() // 临时放行
                 
-                // 知识图谱相关API
-                .requestMatchers("/api/knowledge/**").hasAnyRole("PREMIUM", "ADMIN")
-                .requestMatchers("/api/admin/knowledge/**").hasRole("ADMIN")
+                // 允许公开访问的路径
+                .requestMatchers("/api/v1/auth/**").permitAll()
+                .requestMatchers("/api/v1/public/**").permitAll()
+                // 知识图谱API已在上面配置
+                .requestMatchers("/api/v1/test/**").permitAll() // 临时放行测试API
+                .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**").permitAll()
                 
                 // 所有其他请求需要认证
-                .anyRequest().authenticated()
+                .anyRequest().permitAll()  // 临时全部放行以便测试
             )
             // 添加JWT过滤器在UsernamePasswordAuthenticationFilter之前
             .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider), UsernamePasswordAuthenticationFilter.class);

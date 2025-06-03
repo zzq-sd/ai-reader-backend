@@ -12,7 +12,7 @@ import org.springframework.data.neo4j.core.schema.TargetNode;
 
 /**
  * 笔记与概念之间的关系
- * MENTIONS关系：笔记中提到了某概念
+ * 支持多种关系类型：MENTIONS, EXTRACTED_CONCEPT, INTELLIGENT_TAG等
  */
 @RelationshipProperties
 @Data
@@ -23,7 +23,7 @@ public class NoteConceptRelationship {
 
     @Id
     @GeneratedValue
-    private String id;
+    private Long id;
     
     @TargetNode
     private ConceptNode concept;
@@ -31,29 +31,39 @@ public class NoteConceptRelationship {
     @Property("relevance_score")
     private Double relevanceScore; // 相关性得分，范围0-1
     
-    private NoteNode noteNode;
-    private String relationshipType;
-    private String entityType;
+    @Property("relationship_type")
+    private String relationshipType; // 关系类型：EXTRACTED_CONCEPT, INTELLIGENT_TAG, KEYWORD等
+    
+    @Property("entity_type")
+    private String entityType; // 实体类型
+    
+    @Property("created_at")
     private java.time.LocalDateTime createdAt;
 
     /**
      * 构造函数
      * 
-     * @param note 笔记节点
      * @param concept 概念节点
      * @param relevanceScore 相关性得分
      */
-    public NoteConceptRelationship(NoteNode note, ConceptNode concept, Double relevanceScore) {
+    public NoteConceptRelationship(ConceptNode concept, Double relevanceScore) {
         this.concept = concept;
         this.relevanceScore = relevanceScore;
+        this.createdAt = java.time.LocalDateTime.now();
     }
 
     /**
-     * 设置笔记节点
-     * @param note 笔记节点
+     * 构造函数（带关系类型）
+     * 
+     * @param concept 概念节点
+     * @param relevanceScore 相关性得分
+     * @param relationshipType 关系类型
      */
-    public void setNote(NoteNode note) {
-        this.noteNode = note;
+    public NoteConceptRelationship(ConceptNode concept, Double relevanceScore, String relationshipType) {
+        this.concept = concept;
+        this.relevanceScore = relevanceScore;
+        this.relationshipType = relationshipType;
+        this.createdAt = java.time.LocalDateTime.now();
     }
 
     /**
@@ -62,6 +72,14 @@ public class NoteConceptRelationship {
      */
     public void setRelationType(String relationshipType) {
         this.relationshipType = relationshipType;
+    }
+
+    /**
+     * 获取关系类型
+     * @return 关系类型
+     */
+    public String getRelationType() {
+        return this.relationshipType;
     }
 
     /**

@@ -1,5 +1,9 @@
 package com.aireader.backend.service;
 
+import com.aireader.backend.dto.ArticleDTO;
+import com.aireader.backend.dto.ConceptDetailDTO;
+import com.aireader.backend.dto.ConceptStatisticsDTO;
+import com.aireader.backend.dto.GraphDataDTO;
 import com.aireader.backend.dto.GraphVisualizationDto;
 import com.aireader.backend.dto.RelatedItemDto;
 import com.aireader.backend.model.neo4j.ConceptNode;
@@ -108,4 +112,39 @@ public interface KnowledgeService {
      * @return 统计信息，包括节点数量、关系数量等
      */
     Map<String, Object> getKnowledgeGraphStatistics();
+
+    /**
+     * 获取完整知识图谱数据（用于前端D3.js可视化）
+     *
+     * @param nodeType 节点类型过滤（ALL, CONCEPT, ARTICLE, NOTE）
+     * @param search 搜索关键词
+     * @param limit 节点数量限制
+     * @return 图谱数据
+     */
+    GraphDataDTO getGraphData(String nodeType, String search, int limit);
+
+    /**
+     * 获取概念相关的文章
+     *
+     * @param conceptName 概念名称
+     * @param limit 返回条数限制
+     * @return 相关文章列表
+     */
+    List<ArticleDTO> findRelatedArticlesByConcept(String conceptName, int limit);
+
+    /**
+     * 获取概念统计信息
+     *
+     * @param conceptName 概念名称
+     * @return 概念统计信息
+     */
+    ConceptStatisticsDTO getConceptStatistics(String conceptName);
+
+    /**
+     * 获取概念详情
+     *
+     * @param conceptName 概念名称
+     * @return 概念详情
+     */
+    ConceptDetailDTO getConceptDetail(String conceptName);
 } 

@@ -51,6 +51,32 @@ public class RedisConfig {
         // 知识图谱查询结果缓存 - 1小时
         configMap.put("knowledgeGraphCache", createCacheConfig(Duration.ofHours(1)));
         
+        // === 阶段六：知识图谱专用缓存配置 ===
+        
+        // 图谱数据缓存 - 30分钟
+        configMap.put("graph-data", createCacheConfig(Duration.ofMinutes(30)));
+        
+        // 概念详情缓存 - 1小时
+        configMap.put("concept-details", createCacheConfig(Duration.ofHours(1)));
+        
+        // 相关文章缓存 - 15分钟
+        configMap.put("related-articles", createCacheConfig(Duration.ofMinutes(15)));
+        
+        // 概念统计缓存 - 2小时
+        configMap.put("concept-stats", createCacheConfig(Duration.ofHours(2)));
+        
+        // 搜索结果缓存 - 10分钟
+        configMap.put("concept-search", createCacheConfig(Duration.ofMinutes(10)));
+        
+        // AI分析结果缓存 - 6小时
+        configMap.put("ai-analysis", createCacheConfig(Duration.ofHours(6)));
+        
+        // 用户兴趣图谱缓存 - 4小时
+        configMap.put("user-interest-graph", createCacheConfig(Duration.ofHours(4)));
+        
+        // 热门概念缓存 - 1小时
+        configMap.put("trending-concepts", createCacheConfig(Duration.ofHours(1)));
+        
         return configMap;
     }
 

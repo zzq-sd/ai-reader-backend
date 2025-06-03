@@ -63,7 +63,7 @@ public class UserServiceImpl implements UserService {
         user.setUpdatedAt(LocalDateTime.now());
         
         // 分配默认用户角色
-        Role userRole = roleRepository.findByName("ROLE_USER")
+        Role userRole = roleRepository.findByName(com.aireader.backend.model.constant.UserRole.ROLE_USER)
                 .orElseThrow(() -> new RuntimeException("默认角色不存在"));
         user.setRoles(Collections.singleton(userRole));
         

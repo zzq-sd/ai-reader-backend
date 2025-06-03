@@ -17,17 +17,17 @@ public class RabbitMQConfig {
     // 队列名称
     public static final String RSS_FETCH_QUEUE = "rss.fetch.queue";
     public static final String ARTICLE_ANALYSIS_QUEUE = "article.analysis.queue";
-    public static final String KNOWLEDGE_GRAPH_UPDATE_QUEUE = "knowledge.graph.update.queue";
+    public static final String NOTE_ANALYSIS_QUEUE = "note.analysis.queue";
     
     // 交换机名称
     public static final String RSS_EXCHANGE = "rss.exchange";
     public static final String ARTICLE_EXCHANGE = "article.exchange";
-    public static final String KNOWLEDGE_EXCHANGE = "knowledge.exchange";
+    public static final String NOTE_EXCHANGE = "note.exchange";
     
     // 路由键
     public static final String RSS_FETCH_ROUTING_KEY = "rss.fetch";
     public static final String ARTICLE_ANALYSIS_ROUTING_KEY = "article.analysis";
-    public static final String KNOWLEDGE_GRAPH_UPDATE_ROUTING_KEY = "knowledge.graph.update";
+    public static final String NOTE_ANALYSIS_ROUTING_KEY = "note.analysis";
 
     // RSS抓取队列
     @Bean
@@ -45,13 +45,15 @@ public class RabbitMQConfig {
                 .build();
     }
     
-    // 知识图谱更新队列
+    // 笔记分析队列
     @Bean
-    Queue knowledgeGraphUpdateQueue() {
-        return QueueBuilder.durable(KNOWLEDGE_GRAPH_UPDATE_QUEUE)
-                .withArgument("x-message-ttl", 7200000) // 消息过期时间：2小时
+    Queue noteAnalysisQueue() {
+        return QueueBuilder.durable(NOTE_ANALYSIS_QUEUE)
+                .withArgument("x-message-ttl", 3600000) // 消息过期时间：1小时
                 .build();
     }
+    
+
 
     // RSS交换机
     @Bean
@@ -65,11 +67,13 @@ public class RabbitMQConfig {
         return new DirectExchange(ARTICLE_EXCHANGE);
     }
     
-    // 知识图谱交换机
+    // 笔记交换机
     @Bean
-    DirectExchange knowledgeExchange() {
-        return new DirectExchange(KNOWLEDGE_EXCHANGE);
+    DirectExchange noteExchange() {
+        return new DirectExchange(NOTE_EXCHANGE);
     }
+    
+
 
     // RSS抓取绑定
     @Bean
@@ -87,13 +91,15 @@ public class RabbitMQConfig {
                 .with(ARTICLE_ANALYSIS_ROUTING_KEY);
     }
     
-    // 知识图谱更新绑定
+    // 笔记分析绑定
     @Bean
-    Binding knowledgeBinding(Queue knowledgeGraphUpdateQueue, DirectExchange knowledgeExchange) {
-        return BindingBuilder.bind(knowledgeGraphUpdateQueue)
-                .to(knowledgeExchange)
-                .with(KNOWLEDGE_GRAPH_UPDATE_ROUTING_KEY);
+    Binding noteBinding(Queue noteAnalysisQueue, DirectExchange noteExchange) {
+        return BindingBuilder.bind(noteAnalysisQueue)
+                .to(noteExchange)
+                .with(NOTE_ANALYSIS_ROUTING_KEY);
     }
+    
+
     
     // 消息转换器
     @Bean

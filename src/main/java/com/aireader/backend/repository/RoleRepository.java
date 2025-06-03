@@ -1,6 +1,7 @@
 package com.aireader.backend.repository;
 
 import com.aireader.backend.model.jpa.Role;
+import com.aireader.backend.model.constant.UserRole;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -18,5 +19,5 @@ public interface RoleRepository extends JpaRepository<Role, Long> {
      * @param name 角色名称
      * @return 角色对象
      */
-    Optional<Role> findByName(String name);
+    Optional<Role> findByName(UserRole name);
 } 

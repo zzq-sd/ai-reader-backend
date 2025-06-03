@@ -40,9 +40,10 @@ public class CustomUserDetailsService implements UserDetailsService {
         User user = userRepository.findByUsernameOrEmail(usernameOrEmail, usernameOrEmail)
                 .orElseThrow(() -> new UsernameNotFoundException("找不到用户: " + usernameOrEmail));
         
-        // 将用户角色转换为Spring Security的GrantedAuthority，并添加 "ROLE_" 前缀
+        // 将用户角色转换为Spring Security的GrantedAuthority
+        // 注意：UserRole枚举值已经包含ROLE_前缀（如ROLE_USER），不需要再次添加
         List<GrantedAuthority> authorities = user.getRoles().stream()
-                .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getName()))
+                .map(role -> new SimpleGrantedAuthority(role.getName().toString()))
                 .collect(Collectors.toList());
         
         // 返回自定义的UserDetails对象

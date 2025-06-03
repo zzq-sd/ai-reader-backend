@@ -1,5 +1,6 @@
 package com.aireader.backend.model.mongo;
 
+import com.aireader.backend.ai.ArticleAnalysisResult;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -69,11 +70,21 @@ public class ArticleContent {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ArticleProcessingInfo {
+        // 现有字段保持不变
         private String language;
         private Integer wordCount;
         private Integer readingTimeMinutes;
         private String[] extractedKeywords;
         private String[] extractedEntities;
         private String[] extractedTopics;
+        
+        // 新增字段 - 核心AI分析结果
+        private String enhancedSummary;           // AI增强摘要
+        private String[] keyPoints;               // 关键点数组
+        private String[] intelligentTags;         // 智能标签
+        private ArticleAnalysisResult.ConceptEntity[] extractedConcepts; // 概念实体
+        private String sentimentAnalysis;         // 情感分析
+        private String analysisVersion;           // 分析版本
+        private LocalDateTime lastAnalyzedAt;     // 最后分析时间
     }
 } 

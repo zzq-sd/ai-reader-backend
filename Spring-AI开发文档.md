@@ -1,571 +1,506 @@
-# Spring AI 开发文档
+好的，这是转换为更加鲜明易读的 Markdown 格式的版本：
 
-## 1. 简介
+# Spring AI 1.0 正式发布！核心内容和智能体详解
 
-Spring AI 是Spring生态系统的一部分，旨在简化将人工智能功能集成到应用程序中的过程。它提供了丰富的抽象和接口，使开发人员能够轻松地与各种AI模型和服务进行交互。
+在经历了八个里程碑式的版本之后（M1~M8），**Spring AI 1.0 正式版本，终于在 2025 年 5 月 20 日正式发布了**！这是另一个新高度的里程碑式的版本，标志着 Spring 生态系统正式全面拥抱人工智能技术，并且意味着 Spring AI 将会给企业带来稳定 API 支持。
 
-Spring AI 主要解决了AI集成的基本挑战：**将企业数据和API与AI模型连接起来**。
+## 1. 核心特性
 
-## 2. 版本与依赖
+Spring AI 1.0 的核心是 **`ChatClient`** 接口，这是一个可移植且易于使用的 API，是与 AI 模型交互的主要接口。
 
-本项目使用Spring AI 1.0.0版本，该版本是首个正式发布版本，提供了稳定的API和丰富的功能。
+它支持调用 **20 多种 AI 模型**，从 Anthropic 到 ZhiPu AI，并支持**多模态输入和输出**（当底层模型支持时）以及**结构化响应**（通常以 JSON 格式，便于应用程序处理输出）。
 
-### 2.1 Maven依赖配置
+### 1.1 单模型 `ChatClient` 使用
 
-在`pom.xml`中添加以下依赖：
+在项目中只有一个模型时，创建全局的 `ChatClient`：
+
+```java
+@RestController
+class MyController {
+
+    private final ChatClient chatClient;
+
+    public MyController(ChatClient.Builder chatClientBuilder) {
+        this.chatClient = chatClientBuilder.build();
+    }
+
+    @GetMapping("/ai")
+    String generation(String userInput) {
+        return this.chatClient.prompt()
+            .user(userInput)
+            .call()
+            .content();
+    }
+}
+```
+
+### 1.2 多模型 `ChatClient` 使用
+
+在项目中有多个模型时，可以为特定的模型创建 `ChatClient`：
+
+```java
+// Create ChatClient instances programmatically
+ChatModel myChatModel = ... // already autoconfigured by Spring Boot
+ChatClient chatClient = ChatClient.create(myChatModel);
+
+// Or use the builder for more control
+ChatClient.Builder builder = ChatClient.builder(myChatModel);
+ChatClient customChatClient = builder
+    .defaultSystemPrompt("You are a helpful assistant.")
+    .build();
+```
+
+### 1.3 不同模型类型的 `ChatClients`
+
+当项目中有多个模型时，为每个模型定义单独的 `ChatClient`：
+
+```java
+import org.springframework.ai.chat.ChatClient;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+@Configuration
+public class ChatClientConfig {
+
+    @Bean
+    public ChatClient openAiChatClient(OpenAiChatModel chatModel) {
+        return ChatClient.create(chatModel);
+    }
+
+    @Bean
+    public ChatClient anthropicChatClient(AnthropicChatModel chatModel) {
+        return ChatClient.create(chatModel);
+    }
+}
+```
+
+然后，您可以使用 `@Qualifier` 指定大模型对应的 `ChatClient`：
+
+```java
+import org.springframework.ai.chat.client.ChatClient; // 假设的引入，原文未明确指明ChatClient的具体包
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import java.util.Scanner; // 引入Scanner
+
+@Configuration
+public class ChatClientExample {
+
+    @Bean
+    CommandLineRunner cli(
+            @Qualifier("openAiChatClient") ChatClient openAiChatClient,
+            @Qualifier("anthropicChatClient") ChatClient anthropicChatClient) {
+
+        return args -> {
+            var scanner = new Scanner(System.in);
+            ChatClient chat;
+
+            // Model selection
+            System.out.println("\nSelect your AI model:");
+            System.out.println("1. OpenAI");
+            System.out.println("2. Anthropic");
+            System.out.print("Enter your choice (1 or 2): ");
+
+            String choice = scanner.nextLine().trim();
+
+            if (choice.equals("1")) {
+                chat = openAiChatClient;
+                System.out.println("Using OpenAI model");
+            } else { // 简化处理，非1即2
+                chat = anthropicChatClient;
+                System.out.println("Using Anthropic model");
+            }
+
+            // Use the selected chat client
+            System.out.print("\nEnter your question: ");
+            String input = scanner.nextLine();
+            // 原文是 chat.prompt(input).call().content()，为了符合 ChatClient API，可能需要构建 Prompt 对象
+            // 这里我们假设 prompt(String) 是一个便捷方法，或者用户会根据实际API调整
+            String response = chat.prompt().user(input).call().content();
+            System.out.println("ASSISTANT: " + response);
+
+            scanner.close();
+        };
+    }
+}
+```
+
+## 2. 主要功能亮点
+
+* **检索增强生成 (RAG)**：Spring AI 提供了便携式向量存储抽象，支持 20 种不同的向量数据库（如 Azure Cosmos DB, Weaviate, Cassandra, PostgreSQL/PGVector, MongoDB Atlas, Milvus, Pinecone, Redis 等）。还包括一个轻量级、可配置的 ETL 框架，用于将数据导入向量存储。
+* **对话记忆**：通过 `ChatMemory` 接口管理消息的存储和检索，支持 JDBC、Cassandra 和 Neo4j 等持久化存储。
+* **工具调用**：通过 `@Tool` 注解可以轻松定义工具，让 AI 模型能够获取外部信息或执行实际动作。
+* **评估与测试**：提供 `Evaluator` 接口和内置的 `RelevancyEvaluator`、`FactCheckingEvaluator`，帮助开发者评估 AI 生成内容的准确性和相关性。
+* **可观测性**：与 Micrometer 集成，提供模型延迟、令牌使用情况等关键指标的详细遥测数据。
+
+## 3. 模型上下文协议 (MCP) 支持
+
+Spring AI 1.0 全面支持 **Model Context Protocol (MCP)**，这是一个标准化协议，使 AI 模型能够与外部工具、提示和资源进行交互。Spring AI 提供了客户端和服务器端的 MCP支持，简化了 MCP 工具的使用和创建。
+
+**最简单的 MCP 自定义服务器端实现：**
+
+```java
+import org.springframework.ai.model.function.ToolCallbackProvider; // 假设的引入
+import org.springframework.ai.model.function.MethodToolCallbackProvider; // 假设的引入
+import org.springframework.ai.tool.Tool; // 假设的引入
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.stereotype.Service;
+import org.slf4j.Logger; // 引入Logger
+import org.slf4j.LoggerFactory; // 引入LoggerFactory
+
+
+@Service
+public class WeatherService {
+
+    @Tool(description = "Get weather information by city name")
+    public String getWeather(String cityName) {
+        // 伪代码
+        return "The weather in " + cityName + " is 21°C and sunny.";
+    }
+}
+
+@SpringBootApplication
+public class McpServerApplication {
+
+    private static final Logger logger = LoggerFactory.getLogger(McpServerApplication.class);
+
+    public static void main(String[] args) {
+        SpringApplication.run(McpServerApplication.class, args);
+    }
+
+    @Bean
+    public ToolCallbackProvider weatherTools(WeatherService weatherService) {
+        return MethodToolCallbackProvider.builder().toolObjects(weatherService).build();
+    }
+}
+```
+
+**最简单的 MCP 客户端核心代码实现：**
+
+```java
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class ClientController {
+    @Autowired
+    private ChatClient chatClient; // 假设 ChatClient 已通过配置注入
+
+    @RequestMapping("/chat")
+    public String chat(@RequestParam(value = "msg",defaultValue = "今天天气如何？") String msg) {
+        String response = chatClient.prompt()
+        .user(msg)
+        .call()
+        .content();
+        System.out.println("响应结果: " + response);
+        return response;
+    }
+}
+```
+
+## 4. AI Agent (智能体) 支持
+
+> AI Agent 的核心是“利用 AI 模型与其环境交互，以解决用户定义的任务”。
+
+有效的 AI Agent 将规划、记忆和工具相结合，以完成用户分配的任务。
+
+Spring AI 1.0 支持两种主要类型的 Agent：
+
+* **工作流驱动代理 (Workflow-driven Agents)**：通过预定义路径编排 LLM 和工具，一种更可控的 Agents 实现方法，其中 LLM 和工具通过预定义的路径进行编排。这些工作流是规范性的，可指导 AI 完成既定的操作序列以实现可预测的结果。
+* **自主驱动代理 (Autonomous Agents)**：允许 LLM 自主规划和执行处理步骤。这种方式代理将自己决定要调用的路径，决定使用哪些工具以及以什么顺序使用。
+
+虽然完全自主代理的灵活性很有吸引力，但工作流为定义明确的任务提供了更好的可预测性和一致性。具体使用哪种类型，取决于您的具体要求和风险承受能力。
+
+让我们看看 Spring AI 如何通过五种基本模式来实现这些概念，每种模式都服务于特定的用例：
+
+### 4.1 Chain 工作流模式
+
+该模式将复杂任务分解为一系列步骤，其中每个 LLM 调用都会处理前一个 LLM 调用的输出。
+
+*示意图描述：Chain Workflow 模式体现了将复杂任务分解为更简单、更易于管理的步骤的原则。*
+
+#### 使用场景
+* 具有明确顺序步骤的任务。
+* 当您想用延迟换取更高的准确性时。
+* 当每个步骤都基于上一步的输出时。
+
+#### 简单代码实现：
+```java
+// 假设 ChatClient 已初始化
+// public class ChainWorkflow { ... } // 定义包裹类
+public class ChainWorkflow {
+    private final ChatClient chatClient;
+    private final String[] systemPrompts;
+
+    public ChainWorkflow(ChatClient chatClient, String[] systemPrompts) { // 构造函数注入
+        this.chatClient = chatClient;
+        this.systemPrompts = systemPrompts;
+    }
+
+    public String chain(String userInput) {
+        String response = userInput;
+        for (String prompt : systemPrompts) {
+            // 原文格式 "{%s}\n {%s}" 可能需要调整为标准的 String.format 或直接拼接
+            String input = String.format("%s\n%s", prompt, response); // 调整了格式化字符串
+            response = chatClient.prompt().user(input).call().content(); // 假设 user() 接受完整输入
+        }
+        return response;
+    }
+}
+```
+此实现演示了几个关键原则：
+* 每个步骤都有重点。
+* 一个步骤的输出成为下一个步骤的输入。
+* 该链易于扩展和维护。
+
+### 4.2 并行化工作流
+
+LLM 可以同时处理任务，并以编程方式聚合其输出。
+
+*示意图描述：LLM 可以同时处理多个独立任务，然后汇总结果。*
+
+#### 使用场景
+* 处理大量相似但独立的项目。
+* 需要多个独立视角的任务。
+* 当处理时间至关重要且任务可并行化时。
+
+#### 简单代码实现：
+```java
+import java.util.List; // 引入 List
+// 假设 ChatClient 和 ParallelizationWorkflow 类已定义和初始化
+// public class ParallelizationWorkflow { ... }
+// List<String> parallelResponse = new ParallelizationWorkflow(chatClient)
+// .parallel(
+//     "Analyze how market changes will impact this stakeholder group.",
+//     List.of(
+//         "Customers: ...",
+//         "Employees: ...",
+//         "Investors: ...",
+//         "Suppliers: ..."
+//     ),
+//     4 // 假设是并行度
+// );
+```
+*注：上述代码为示意，`ParallelizationWorkflow` 的具体实现未在原文中提供。*
+
+### 4.3 路由工作流
+
+路由模式实现了智能任务分配，从而支持对不同类型的输入进行专门处理。
+
+*示意图描述：根据输入内容，将其路由到专门处理该类型任务的 LLM 或流程。*
+
+#### 使用场景
+* 具有不同输入类别的复杂任务。
+* 当不同的输入需要专门处理时。
+* 何时可以准确处理分类。
+
+#### 简单代码实现：
+```java
+import org.springframework.beans.factory.annotation.Autowired; // 引入 Autowired
+import java.util.Map; // 引入 Map
+// 假设 ChatClient 和 RoutingWorkflow 类已定义和初始化
+// @Autowired // 假设通过Spring注入
+// private ChatClient chatClient;
+
+// RoutingWorkflow workflow = new RoutingWorkflow(chatClient); // 假设构造
+
+// Map<String, String> routes = Map.of(
+//     "billing", "You are a billing specialist. Help resolve billing issues...",
+//     "technical", "You are a technical support engineer. Help solve technical problems...",
+//     "general", "You are a customer service representative. Help with general inquiries..."
+// );
+
+// String input = "My account was charged twice last week";
+// String response = workflow.route(input, routes); // 假设 route 方法的实现
+```
+*注：上述代码为示意，`RoutingWorkflow` 的具体实现未在原文中提供。*
+
+### 4.4 编排器
+
+*示意图描述：编排器分析任务，将其分解为子任务，分配给不同的工作单元（Workers）并行处理，最后合并结果。*
+
+#### 使用场景
+* 无法预先预测子任务的复杂任务。
+* 需要不同方法或观点的任务。
+* 需要适应性问题解决的情况。
+
+#### 简单实现代码：
+```java
+// 假设 OrchestratorResponse, WorkerResponse, OrchestratorWorkersWorkflow 类已定义
+// public class OrchestratorWorkersWorkflow {
+//     // 假设 ChatClient 通过构造函数或其他方式注入
+//     public OrchestratorWorkersWorkflow(ChatClient chatClient) { /* ... */ }
+
+//     public WorkerResponse process(String taskDescription) {
+//         // 1. Orchestrator analyzes task and determines subtasks
+//         // OrchestratorResponse orchestratorResponse = ... // (LLM call to determine subtasks)
+
+//         // 2. Workers process subtasks in parallel
+//         // List<String> workerResponses = ... // (Parallel LLM calls for each subtask)
+
+//         // 3. Results are combined into final response
+//         // return new WorkerResponse(/* combined results, analysis */);
+//         return null; // Placeholder
+//     }
+// }
+```
+#### 使用示例：
+```java
+// ChatClient chatClient = // ... initialize chat client
+// OrchestratorWorkersWorkflow workflow = new OrchestratorWorkersWorkflow(chatClient);
+
+// WorkerResponse response = workflow.process(
+//     "Generate both technical and user-friendly documentation for a REST API endpoint"
+// );
+
+// System.out.println("Analysis: " + response.analysis());
+// System.out.println("Worker Outputs: " + response.workerResponses());
+```
+*注：上述代码为示意，`OrchestratorWorkersWorkflow` 的具体实现未在原文中提供。*
+
+### 4.5 评估器-优化器
+
+*示意图描述：初始方案生成后，由评估器进行评估，然后优化器根据评估结果对方案进行迭代改进，直至满足标准。*
+
+#### 使用场景
+* 存在明确的评估标准。
+* 迭代优化提供可衡量的价值。
+* 任务受益于多轮批评。
+
+#### 简单代码实现：
+```java
+// 假设 Generation, EvaluationResponse, RefinedResponse, EvaluatorOptimizerWorkflow 类已定义
+// public class EvaluatorOptimizerWorkflow {
+//     // 假设 ChatClient 和 context 通过构造函数或其他方式注入
+//     public EvaluatorOptimizerWorkflow(ChatClient chatClient /*, SomeContext context*/) { /* ... */ }
+
+//     private Generation generate(String task, Object context) { /* ... */ return null; } // Placeholder
+//     private EvaluationResponse evaluate(String response, String task) { /* ... */ return null; } // Placeholder
+
+//     public RefinedResponse loop(String task) {
+//         // Generation generation = generate(task, context); // 'context' 未定义
+//         // EvaluationResponse evaluation = evaluate(generation.response(), task);
+//         // RefinedResponse finalSolution = ... // Logic to refine based on evaluation
+//         // String chainOfThought = ... // Record of the process
+//         // return new RefinedResponse(finalSolution, chainOfThought);
+//         return null; // Placeholder
+//     }
+// }
+```
+#### 使用示例：
+```java
+// ChatClient chatClient = // ... initialize chat client
+// EvaluatorOptimizerWorkflow workflow = new EvaluatorOptimizerWorkflow(chatClient);
+
+// RefinedResponse response = workflow.loop(
+//     "Create a Java class implementing a thread-safe counter"
+// );
+
+// System.out.println("Final Solution: " + response.solution());
+// System.out.println("Evolution: " + response.chainOfThought());
+```
+*注：上述代码为示意，`EvaluatorOptimizerWorkflow` 的具体实现未在原文中提供。*
+
+## 5. 开始使用 Spring AI
+
+开发者可以通过 Maven 中央仓库获取 Spring AI 1.0 的所有组件。使用提供的 bom 导入依赖：
 
 ```xml
-<!-- Spring AI BOM -->
 <dependencyManagement>
-    <dependencies>
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-bom</artifactId>
-            <version>1.0.0</version>
-            <type>pom</type>
-            <scope>import</scope>
-        </dependency>
-    </dependencies>
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.ai</groupId>
+      <artifactId>spring-ai-bom</artifactId>
+      <version>1.0.0</version>
+      <type>pom</type>
+      <scope>import</scope>
+    </dependency>
+  </dependencies>
 </dependencyManagement>
+```
 
-<!-- Spring AI OpenAI依赖 -->
+也可以在 **Spring Initializr** 网站上创建 1.0 GA 应用程序，并参考参考文档中的"Getting Started"部分。
+
+---
+
+## DeepSeek API 使用
+
+DeepSeek SDK 的具体使用如下。
+
+**准备工作：**
+在 DeepSeek 申请 APIKey。
+
+**添加依赖：**
+```xml
 <dependency>
     <groupId>org.springframework.ai</groupId>
-    <artifactId>spring-ai-openai-spring-boot-starter</artifactId>
-</dependency>
-
-<!-- Spring AI向量存储依赖 - Neo4j -->
-<dependency>
-    <groupId>org.springframework.ai</groupId>
-    <artifactId>spring-ai-neo4j-store</artifactId>
+    <artifactId>spring-ai-deepseek-spring-boot-starter</artifactId>
 </dependency>
 ```
 
-### 2.2 应用程序属性配置
-
-在`application.properties`或`application.yml`中配置Spring AI:
-
+**设置配置信息 (`application.properties` 或 `application.yml`)：**
 ```properties
-# OpenAI配置
-spring.ai.openai.api-key=${OPENAI_API_KEY}
-spring.ai.openai.model=gpt-3.5-turbo
-spring.ai.openai.temperature=0.7
-
-# 向量存储配置 - Neo4j
-spring.neo4j.uri=bolt://localhost:7687
-spring.neo4j.authentication.username=neo4j
-spring.neo4j.authentication.password=password
+spring.ai.deepseek.api-key=YOUR_API_KEY
+spring.ai.deepseek.chat.options.model=deepseek-chat
+spring.ai.deepseek.chat.options.temperature=0.8
 ```
 
-## 3. 核心功能与组件
-
-Spring AI 1.0.0提供的主要功能包括：
-
-### 3.1 ChatClient API
-
-ChatClient是与AI模型交互的主要接口，提供了流畅的API，类似于WebClient和RestClient。
-
+**编写调用代码：**
 ```java
-@Autowired
-private OpenAiChatClient chatClient;
+import org.springframework.ai.chat.model.ChatResponse; // 修正为正确的 ChatResponse 包
+import org.springframework.ai.chat.prompt.Prompt; // 引入 Prompt
+import org.springframework.ai.chat.prompt.UserMessage; // 引入 UserMessage
+import org.springframework.ai.deepseek.DeepSeekChatModel; // 引入 DeepSeekChatModel
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Flux; // 引入 Flux
+import java.util.Map; // 引入 Map
 
-public String getResponse(String prompt) {
-    return chatClient.call(prompt);
-}
+@RestController
+public class ChatController {
 
-// 带系统提示的调用
-public String getResponseWithSystemPrompt(String prompt) {
-    Prompt systemPrompt = new Prompt(
-        List.of(
-            new SystemMessage("你是一个文章内容分析助手，擅长提取关键概念和实体。"),
-            new UserMessage(prompt)
-        )
-    );
-    return chatClient.call(systemPrompt);
-}
-```
+    private final DeepSeekChatModel chatModel;
 
-### 3.2 结构化输出
-
-可以将AI模型的输出直接映射到Java对象：
-
-```java
-public ArticleAnalysis analyzeArticle(String articleContent) {
-    Prompt prompt = new Prompt(
-        "分析以下文章内容，提取关键概念、实体和主题：" + articleContent
-    );
-    
-    return chatClient.call(prompt, ArticleAnalysis.class);
-}
-
-// 结构化输出类
-@Data
-public class ArticleAnalysis {
-    private List<String> concepts;
-    private List<String> entities;
-    private List<String> keywords;
-    private String mainTopic;
-}
-```
-
-### 3.3 检索增强生成 (RAG)
-
-RAG是一种结合检索系统和生成AI的方法，可以使AI模型基于特定数据集回答问题：
-
-```java
-@Autowired
-private Neo4jVectorStore vectorStore;
-
-@Autowired
-private OpenAiChatClient chatClient;
-
-public String answerQuestionWithRAG(String question) {
-    // 创建向量嵌入
-    List<Document> relevantDocs = vectorStore.similaritySearch(question);
-    
-    // 构建提示，包含检索到的相关文档
-    StringBuilder context = new StringBuilder();
-    for (Document doc : relevantDocs) {
-        context.append(doc.getContent()).append("\n\n");
-    }
-    
-    Prompt prompt = new Prompt(
-        List.of(
-            new SystemMessage("基于以下信息回答用户问题。如果无法从提供的信息中找到答案，请说'我无法从提供的信息中找到答案'。\n\n信息: " + context.toString()),
-            new UserMessage(question)
-        )
-    );
-    
-    return chatClient.call(prompt);
-}
-```
-
-### 3.4 工具调用 (Tool Calling)
-
-Spring AI支持工具调用，允许AI模型调用应用程序中的工具和函数：
-
-```java
-@Autowired
-private OpenAiChatClient chatClient;
-
-public String processWithTools(String query) {
-    // 定义工具
-    ToolSpecification searchTool = ToolSpecification.builder()
-            .name("search_articles")
-            .description("搜索相关文章")
-            .parameter("query", String.class, "搜索关键词")
-            .build();
-    
-    // 创建工具处理器
-    ToolCallbackFactory toolCallbackFactory = 
-        ToolCallbackFactory.builder()
-            .register("search_articles", params -> {
-                String searchQuery = params.get("query").toString();
-                // 实际的搜索逻辑
-                return searchArticlesByKeyword(searchQuery);
-            })
-            .build();
-    
-    // 创建支持工具调用的ChatClient
-    OpenAiChatOptions options = OpenAiChatOptions.builder()
-            .withTools(List.of(searchTool))
-            .build();
-    
-    // 带工具的提示执行
-    Prompt prompt = new Prompt("我想找关于机器学习的最新文章");
-    return chatClient.call(prompt, toolCallbackFactory, options);
-}
-```
-
-### 3.5 Advisor API
-
-Advisors是一种拦截器链，允许修改发送到模型的提示，注入检索数据和会话记忆：
-
-```java
-@Autowired
-private Neo4jVectorStore vectorStore;
-
-@Autowired
-private OpenAiChatClient chatClient;
-
-public ChatClient createAdvisorChatClient() {
-    // 创建检索增强Advisor
-    VectorStoreRetriever retriever = new VectorStoreRetriever(vectorStore);
-    retriever.setMaxResults(3);
-    
-    RetrievalAugmentor augmentor = new RetrievalAugmentor(retriever);
-    augmentor.setThreshold(0.7);
-    
-    // 创建会话记忆Advisor
-    WindowBufferMemory memory = new WindowBufferMemory();
-    
-    // 组合Advisors
-    List<ChatClientAdvisor> advisors = List.of(
-        new RetrievalAugmentationAdvisor(augmentor),
-        new MemoryAdvisor(memory)
-    );
-    
-    // 创建带Advisors的ChatClient
-    return AdvisedChatClient.builder(chatClient)
-        .withAdvisors(advisors)
-        .build();
-}
-```
-
-### 3.6 向量存储抽象
-
-Spring AI提供了对20多种向量数据库的支持，包括Neo4j、MongoDB等：
-
-```java
-@Autowired
-private Neo4jVectorStore vectorStore;
-
-@Autowired
-private EmbeddingClient embeddingClient;
-
-// 将文档存储到向量库
-public void storeDocuments(List<Document> documents) {
-    vectorStore.add(documents);
-}
-
-// 相似度搜索
-public List<Document> findSimilarDocuments(String query) {
-    return vectorStore.similaritySearch(query);
-}
-
-// 使用过滤条件进行搜索
-public List<Document> findSimilarDocumentsWithFilter(String query, String type) {
-    String filter = "metadata.type = '" + type + "'";
-    return vectorStore.similaritySearch(query, filter);
-}
-```
-
-## 4. 在AI阅读器系统中的应用
-
-### 4.1 文章内容分析服务
-
-我们将使用Spring AI实现文章的智能分析，包括关键词提取、实体识别和主题分类：
-
-```java
-@Service
-public class ArticleAiAnalysisService {
-    
     @Autowired
-    private OpenAiChatClient chatClient;
-    
-    @Autowired
-    private Neo4jVectorStore vectorStore;
-    
-    @Autowired
-    private EmbeddingClient embeddingClient;
-    
-    /**
-     * 分析文章内容，提取关键信息
-     */
-    public ArticleAnalysisResult analyzeArticle(String content) {
-        Prompt prompt = new Prompt(
-            List.of(
-                new SystemMessage("你是一个专业的文章分析助手。请分析提供的文章内容，提取以下信息：\n" +
-                                 "1. 主要关键词（最多10个）\n" +
-                                 "2. 关键实体（人物、组织、地点等）\n" +
-                                 "3. 文章的主要主题或分类\n" +
-                                 "4. 情感倾向（积极、消极或中性）"),
-                new UserMessage(content)
-            )
-        );
-        
-        return chatClient.call(prompt, ArticleAnalysisResult.class);
+    public ChatController(DeepSeekChatModel chatModel) {
+        this.chatModel = chatModel;
     }
-    
-    /**
-     * 将文章向量化并存储到向量数据库
-     */
-    public void vectorizeAndStoreArticle(Long articleId, String title, String content) {
-        // 创建文档对象
-        Map<String, Object> metadata = new HashMap<>();
-        metadata.put("id", articleId.toString());
-        metadata.put("title", title);
-        metadata.put("type", "article");
-        
-        Document document = new Document(content, metadata);
-        
-        // 存储到向量数据库
-        vectorStore.add(List.of(document));
+
+    // 普通输出
+    @GetMapping("/ai/generate")
+    public Map<String, Object> generate(@RequestParam(value = "message", defaultValue = "Tell me a joke") String message) {
+        // chatModel.call(message) 返回 String，若要符合 Map.of("generation", ...) 结构，需确认返回类型
+        // 假设 call 返回的是可以直接放入 Map 的内容，或者其本身就是一个包含 "generation" 键的 Map
+        // 为保持一致性，我们假定 call(String) 返回的是一个 ChatResponse 或类似结构，需要从中提取内容
+        // 或者，简单地返回 String
+        // String responseContent = chatModel.call(message); // 假设返回 String
+        // return Map.of("generation", responseContent);
+
+        // 根据 Spring AI 一般实践，call(Prompt) 返回 ChatResponse
+        Prompt prompt = new Prompt(new UserMessage(message));
+        ChatResponse chatResponse = chatModel.call(prompt);
+        return Map.of("generation", chatResponse.getResult().getOutput().getContent());
     }
-    
-    /**
-     * 获取与查询相似的文章
-     */
-    public List<RelatedItemDto> findSimilarArticles(String query) {
-        List<Document> similarDocs = vectorStore.similaritySearch(query, "metadata.type = 'article'");
-        
-        return similarDocs.stream()
-            .map(doc -> {
-                Map<String, Object> metadata = doc.getMetadata();
-                return RelatedItemDto.builder()
-                    .itemId((String) metadata.get("id"))
-                    .title((String) metadata.get("title"))
-                    .type(RelatedItemDto.ItemType.ARTICLE)
-                    .summary(doc.getContent().substring(0, Math.min(200, doc.getContent().length())) + "...")
-                    .build();
-            })
-            .collect(Collectors.toList());
+
+    // 流式输出
+    @GetMapping("/ai/generateStream")
+    public Flux<ChatResponse> generateStream(@RequestParam(value = "message", defaultValue = "Tell me a joke") String message) {
+        var prompt = new Prompt(new UserMessage(message));
+        return chatModel.stream(prompt);
     }
 }
 ```
 
-### 4.2 知识图谱构建服务
+---
 
-使用Spring AI分析文章和笔记，并将提取的实体、概念和关系构建到Neo4j知识图谱中：
+## 小结
 
-```java
-@Service
-public class KnowledgeGraphService {
-    
-    @Autowired
-    private OpenAiChatClient chatClient;
-    
-    @Autowired
-    private Neo4jOperations neo4jOperations;
-    
-    /**
-     * 从文本中提取知识图谱元素
-     */
-    public KnowledgeGraphElements extractKnowledgeElements(String content) {
-        Prompt prompt = new Prompt(
-            List.of(
-                new SystemMessage("你是一个专业的知识图谱构建助手。请从以下文本中提取实体、概念和它们之间的关系："),
-                new UserMessage(content)
-            )
-        );
-        
-        return chatClient.call(prompt, KnowledgeGraphElements.class);
-    }
-    
-    /**
-     * 将知识元素添加到图谱中
-     */
-    public void updateKnowledgeGraph(KnowledgeGraphElements elements, String sourceId, String sourceType) {
-        // 添加概念节点
-        for (Concept concept : elements.getConcepts()) {
-            Map<String, Object> params = Map.of(
-                "name", concept.getName(),
-                "description", concept.getDescription()
-            );
-            
-            neo4jOperations.query(
-                "MERGE (c:Concept {name: $name}) " +
-                "ON CREATE SET c.description = $description " +
-                "ON MATCH SET c.description = CASE WHEN c.description IS NULL THEN $description ELSE c.description END " +
-                "RETURN c",
-                params
-            );
-        }
-        
-        // 添加实体节点
-        for (Entity entity : elements.getEntities()) {
-            Map<String, Object> params = Map.of(
-                "name", entity.getName(),
-                "type", entity.getType()
-            );
-            
-            neo4jOperations.query(
-                "MERGE (e:Entity {name: $name, type: $type}) " +
-                "RETURN e",
-                params
-            );
-        }
-        
-        // 添加关系
-        for (Relationship rel : elements.getRelationships()) {
-            Map<String, Object> params = Map.of(
-                "source", rel.getSource(),
-                "target", rel.getTarget(),
-                "type", rel.getType(),
-                "sourceId", sourceId,
-                "sourceType", sourceType
-            );
-            
-            neo4jOperations.query(
-                "MATCH (s {name: $source}), (t {name: $target}) " +
-                "MERGE (s)-[r:" + rel.getType() + " {sourceId: $sourceId, sourceType: $sourceType}]->(t) " +
-                "RETURN r",
-                params
-            );
-        }
-        
-        // 与源内容建立关系
-        if ("article".equals(sourceType)) {
-            // 连接文章与概念
-            for (Concept concept : elements.getConcepts()) {
-                Map<String, Object> params = Map.of(
-                    "articleId", sourceId,
-                    "conceptName", concept.getName()
-                );
-                
-                neo4jOperations.query(
-                    "MATCH (a:ArticleNode {id: $articleId}), (c:Concept {name: $conceptName}) " +
-                    "MERGE (a)-[r:MENTIONS_CONCEPT]->(c) " +
-                    "RETURN r",
-                    params
-                );
-            }
-        } else if ("note".equals(sourceType)) {
-            // 连接笔记与概念
-            for (Concept concept : elements.getConcepts()) {
-                Map<String, Object> params = Map.of(
-                    "noteId", sourceId,
-                    "conceptName", concept.getName()
-                );
-                
-                neo4jOperations.query(
-                    "MATCH (n:NoteNode {id: $noteId}), (c:Concept {name: $conceptName}) " +
-                    "MERGE (n)-[r:CONTAINS_CONCEPT]->(c) " +
-                    "RETURN r",
-                    params
-                );
-            }
-        }
-    }
-}
-
-@Data
-public class KnowledgeGraphElements {
-    private List<Concept> concepts;
-    private List<Entity> entities;
-    private List<Relationship> relationships;
-}
-
-@Data
-public class Concept {
-    private String name;
-    private String description;
-}
-
-@Data
-public class Entity {
-    private String name;
-    private String type; // 例如：Person, Organization, Location等
-}
-
-@Data
-public class Relationship {
-    private String source;
-    private String target;
-    private String type;
-}
-```
-
-### 4.3 知识图谱查询和可视化
-
-使用Neo4j查询知识图谱，并生成可视化数据：
-
-```java
-@Service
-public class KnowledgeVisualizationService {
-    
-    @Autowired
-    private Neo4jOperations neo4jOperations;
-    
-    /**
-     * 获取以特定节点为中心的子图
-     */
-    public GraphVisualizationDto getGraphVisualizationData(String centerNodeId, int depth) {
-        Map<String, Object> params = Map.of(
-            "nodeId", centerNodeId,
-            "depth", depth
-        );
-        
-        // 查询节点
-        List<Map<String, Object>> nodeResults = neo4jOperations.query(
-            "MATCH (n) " +
-            "WHERE id(n) = $nodeId " +
-            "CALL apoc.path.subgraphNodes(n, {maxLevel: $depth}) YIELD node " +
-            "RETURN id(node) as id, labels(node) as labels, node.name as name, " +
-            "node.type as type, properties(node) as properties",
-            params,
-            Map.class
-        );
-        
-        // 查询关系
-        List<Map<String, Object>> edgeResults = neo4jOperations.query(
-            "MATCH (n) " +
-            "WHERE id(n) = $nodeId " +
-            "CALL apoc.path.subgraphAll(n, {maxLevel: $depth}) YIELD nodes, relationships " +
-            "UNWIND relationships AS r " +
-            "RETURN id(r) as id, id(startNode(r)) as source, id(endNode(r)) as target, " +
-            "type(r) as label, properties(r) as properties",
-            params,
-            Map.class
-        );
-        
-        // 转换为DTO
-        List<GraphVisualizationDto.Node> nodes = nodeResults.stream()
-            .map(row -> {
-                List<String> labels = (List<String>) row.get("labels");
-                String type = labels != null && !labels.isEmpty() ? labels.get(0) : "Unknown";
-                
-                return GraphVisualizationDto.Node.builder()
-                    .id(row.get("id").toString())
-                    .label((String) row.get("name"))
-                    .type(type)
-                    .properties((Map<String, Object>) row.get("properties"))
-                    .build();
-            })
-            .collect(Collectors.toList());
-        
-        List<GraphVisualizationDto.Edge> edges = edgeResults.stream()
-            .map(row -> GraphVisualizationDto.Edge.builder()
-                .id(row.get("id").toString())
-                .source(row.get("source").toString())
-                .target(row.get("target").toString())
-                .label((String) row.get("label"))
-                .properties((Map<String, Object>) row.get("properties"))
-                .build()
-            )
-            .collect(Collectors.toList());
-        
-        return GraphVisualizationDto.builder()
-            .nodes(nodes)
-            .edges(edges)
-            .build();
-    }
-}
-```
-
-## 5. 最佳实践与注意事项
-
-### 5.1 提示工程 (Prompt Engineering)
-
-- 使用明确、具体的指令
-- 提供良好的示例
-- 分解复杂任务为简单步骤
-- 使用系统消息定义角色和行为
-- 避免太模糊或太复杂的提示
-
-### 5.2 模型选择
-
-- 对于简单的文本生成和分析任务，可使用 gpt-3.5-turbo
-- 对于更复杂的理解和推理任务，考虑使用 gpt-4
-- 对于嵌入向量生成，使用适当的嵌入模型
-
-### 5.3 性能优化
-
-- 合理设置向量检索的结果数量
-- 使用缓存机制减少重复计算
-- 批处理大量文档的向量化过程
-- 使用异步处理大型文档
-
-### 5.4 安全性考虑
-
-- 安全存储API密钥
-- 实施速率限制以控制API调用
-- 对用户输入进行验证和清理
-- 使用审核模型检查有害内容
-
-## 6. 参考资源
-
-- [Spring AI 官方文档](https://docs.spring.io/spring-ai/reference/index.html)
-- [Spring AI GitHub 仓库](https://github.com/spring-projects/spring-ai)
-- [Spring Initializr](https://start.spring.io)
-- [Spring AI 示例项目](https://github.com/spring-projects/spring-ai-examples) 
+**Spring AI 1.0** 的发布标志着企业级 Java 应用程序开发进入了一个新时代，使开发者能够轻松地将最先进的 AI 能力集成到他们的 Spring 应用程序中。

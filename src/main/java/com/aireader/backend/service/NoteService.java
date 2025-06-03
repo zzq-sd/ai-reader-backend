@@ -2,6 +2,7 @@ package com.aireader.backend.service;
 
 import com.aireader.backend.dto.NoteRequestDto;
 import com.aireader.backend.dto.NoteResponseDto;
+import com.aireader.backend.dto.NoteAnalysisResultDto;
 import com.aireader.backend.dto.PageResponseDto;
 import com.aireader.backend.dto.TagDto;
 
@@ -149,4 +150,22 @@ public interface NoteService {
      * @return 更新后的笔记
      */
     NoteResponseDto removeTagsFromNote(String noteId, Set<String> tagIds, String userId);
+    
+    /**
+     * 获取笔记的AI分析结果
+     * 
+     * @param noteId 笔记ID
+     * @param userId 用户ID
+     * @return AI分析结果
+     */
+    NoteAnalysisResultDto getNoteAnalysisResult(String noteId, String userId);
+    
+    /**
+     * 手动触发笔记重新分析
+     * 
+     * @param noteId 笔记ID
+     * @param userId 用户ID
+     * @return 是否成功提交分析任务
+     */
+    boolean reanalyzeNote(String noteId, String userId);
 } 

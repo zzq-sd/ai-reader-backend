@@ -13,7 +13,7 @@ import java.util.Optional;
  * Neo4j文章-概念关系仓库接口
  */
 @Repository
-public interface ArticleConceptRelationshipRepository extends Neo4jRepository<ArticleConceptRelationship, String> {
+public interface ArticleConceptRelationshipRepository extends Neo4jRepository<ArticleConceptRelationship, Long> {
 
     /**
      * 查找文章与概念之间的关系
@@ -25,7 +25,7 @@ public interface ArticleConceptRelationshipRepository extends Neo4jRepository<Ar
     @Query("MATCH (a:Article)-[r:ABOUT]->(c:Concept) " +
            "WHERE ID(a) = $articleId AND ID(c) = $conceptId " +
            "RETURN r")
-    Optional<ArticleConceptRelationship> findRelationship(@Param("articleId") String articleId, @Param("conceptId") String conceptId);
+    Optional<ArticleConceptRelationship> findRelationship(@Param("articleId") Long articleId, @Param("conceptId") Long conceptId);
     
     /**
      * 查找文章的所有概念关系
@@ -37,7 +37,7 @@ public interface ArticleConceptRelationshipRepository extends Neo4jRepository<Ar
            "WHERE ID(a) = $articleId " +
            "RETURN r " +
            "ORDER BY r.relevanceScore DESC")
-    List<ArticleConceptRelationship> findRelationshipsByArticleId(@Param("articleId") String articleId);
+    List<ArticleConceptRelationship> findRelationshipsByArticleId(@Param("articleId") Long articleId);
     
     /**
      * 查找与概念相关的所有文章关系
@@ -49,7 +49,7 @@ public interface ArticleConceptRelationshipRepository extends Neo4jRepository<Ar
            "WHERE ID(c) = $conceptId " +
            "RETURN r " +
            "ORDER BY r.relevanceScore DESC")
-    List<ArticleConceptRelationship> findRelationshipsByConceptId(@Param("conceptId") String conceptId);
+    List<ArticleConceptRelationship> findRelationshipsByConceptId(@Param("conceptId") Long conceptId);
     
     /**
      * 查找文章的主要概念关系（按相关性评分排序）
@@ -63,7 +63,7 @@ public interface ArticleConceptRelationshipRepository extends Neo4jRepository<Ar
            "RETURN r " +
            "ORDER BY r.relevanceScore DESC " +
            "LIMIT $limit")
-    List<ArticleConceptRelationship> findTopConceptRelationships(@Param("articleId") String articleId, @Param("limit") int limit);
+    List<ArticleConceptRelationship> findTopConceptRelationships(@Param("articleId") Long articleId, @Param("limit") int limit);
     
     /**
      * 更新文章与概念之间的关系评分
@@ -78,7 +78,7 @@ public interface ArticleConceptRelationshipRepository extends Neo4jRepository<Ar
            "SET r.relevanceScore = $relevanceScore " +
            "RETURN r")
     boolean updateRelevanceScore(
-            @Param("articleId") String articleId, 
-            @Param("conceptId") String conceptId, 
+            @Param("articleId") Long articleId, 
+            @Param("conceptId") Long conceptId, 
             @Param("relevanceScore") Double relevanceScore);
 } 
