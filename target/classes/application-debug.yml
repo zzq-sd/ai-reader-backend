@@ -1,0 +1,43 @@
+# 调试模式配置文件
+# 使用方式: java -jar app.jar --spring.profiles.active=debug
+
+# 仅包含日志配置，其他配置从主配置文件继承
+logging:
+  level:
+    root: DEBUG  # 根日志级别设为DEBUG
+    com.aireader.backend: TRACE  # 我们的业务代码全部TRACE级别
+    com.aireader.backend.ai: TRACE  # AI相关服务
+    com.aireader.backend.service: TRACE  # 业务服务层
+    com.aireader.backend.service.impl: TRACE  # 服务实现层
+    com.aireader.backend.consumer: TRACE  # 消息消费者
+    com.aireader.backend.controller: TRACE  # 控制器层
+    com.aireader.backend.config: TRACE  # 配置类
+    com.aireader.backend.repository: TRACE  # 数据访问层
+    # Spring框架相关
+    org.springframework: DEBUG  # 升级到DEBUG
+    org.springframework.ai: TRACE  # Spring AI全部TRACE
+    org.springframework.web: DEBUG  # Web相关DEBUG
+    org.springframework.web.client: TRACE  # HTTP客户端TRACE
+    org.springframework.data: DEBUG  # Spring Data框架DEBUG
+    org.springframework.data.neo4j: TRACE  # Neo4j TRACE级别
+    org.springframework.transaction: DEBUG  # 事务DEBUG
+    org.springframework.security: DEBUG  # 安全框架DEBUG
+    # 数据库相关
+    org.hibernate: DEBUG  # 升级到DEBUG看SQL
+    org.hibernate.SQL: DEBUG  # SQL语句
+    org.hibernate.type: TRACE  # SQL参数绑定
+    # Neo4j相关
+    org.neo4j: DEBUG  # Neo4j驱动DEBUG
+    org.neo4j.driver: TRACE  # Neo4j驱动TRACE
+    # MongoDB相关
+    org.springframework.data.mongodb: DEBUG  # MongoDB DEBUG
+    # RabbitMQ相关
+    org.springframework.amqp: DEBUG  # AMQP DEBUG
+    org.springframework.rabbit: DEBUG  # RabbitMQ DEBUG
+    # HTTP客户端
+    org.apache.http: DEBUG  # Apache HTTP客户端
+    okhttp3: DEBUG  # OkHttp客户端
+    # JSON处理
+    com.fasterxml.jackson: DEBUG  # Jackson JSON处理
+    # 缓存相关
+    org.springframework.cache: DEBUG  # 缓存框架 

@@ -1,0 +1,6 @@
+Manifest-Version: 1.0
+Implementation-Title: spring-webflux
+Implementation-Version: 6.1.6
+Automatic-Module-Name: spring.webflux
+Created-By: 17.0.10 (Oracle Corporation)
+

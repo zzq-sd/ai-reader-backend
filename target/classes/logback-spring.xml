@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 
+    优化后的日志配置文件 - 只显示关键信息
+-->
+<configuration>
+    <!-- 属性配置 -->
+    <property name="LOG_HOME" value="logs" />
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n" />
+    
+    <!-- 彩色控制台输出 - 更易于区分重要信息 -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+            <pattern>%yellow(%d{yyyy-MM-dd HH:mm:ss.SSS}) %highlight(%-5level) [%blue(%thread)] %green(%logger{36}) - %msg%n</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+    
+    <!-- 文件输出 - 所有日志 -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_HOME}/ai-reader.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_HOME}/ai-reader.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+    
+    <!-- Neo4j专用日志文件 -->
+    <appender name="NEO4J_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_HOME}/neo4j.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_HOME}/neo4j.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>7</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+    
+    <!-- 错误日志单独文件 -->
+    <appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_HOME}/error.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_HOME}/error.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+        <filter class="ch.qos.logback.classic.filter.ThresholdFilter">
+            <level>ERROR</level>
+        </filter>
+    </appender>
+    
+    <!-- Neo4j相关日志配置 - 调整为INFO级别 -->
+    <logger name="org.springframework.data.neo4j" level="INFO" additivity="false">
+        <appender-ref ref="NEO4J_FILE" />
+        <appender-ref ref="CONSOLE" />
+    </logger>
+    
+    <logger name="org.neo4j.driver" level="INFO" additivity="false">
+        <appender-ref ref="NEO4J_FILE" />
+        <appender-ref ref="CONSOLE" />
+    </logger>
+    
+    <!-- 应用日志级别 - 改为INFO -->
+    <logger name="com.aireader.backend" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE" />
+        <appender-ref ref="ERROR_FILE" />
+    </logger>
+    
+    <!-- Spring AI相关日志 - 改为INFO级别 -->
+    <logger name="org.springframework.ai" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE" />
+    </logger>
+    
+    <!-- 框架日志级别 - 全部改为WARN或INFO -->
+    <logger name="org.springframework" level="WARN" />
+    <logger name="org.hibernate" level="WARN" />
+    <logger name="org.hibernate.SQL" level="INFO" /> <!-- 保留SQL语句 -->
+    <logger name="org.apache" level="WARN" />
+    <logger name="org.springframework.data.mongodb" level="WARN" />
+    <logger name="org.springframework.amqp" level="WARN" />
+    <logger name="org.springframework.rabbit" level="WARN" />
+    <logger name="com.fasterxml.jackson" level="WARN" />
+    
+    <!-- 启动时相关的关键组件 - 保持INFO级别以显示重要信息 -->
+    <logger name="org.springframework.boot" level="INFO" />
+    <logger name="org.springframework.boot.web.embedded" level="INFO" />
+    <logger name="org.springframework.boot.actuate" level="INFO" />
+    <logger name="org.springframework.data.repository.config" level="INFO" />
+    <logger name="org.springframework.security.web" level="INFO" />
+    
+    <!-- 自定义Neo4j转换器配置 -->
+    <logger name="com.aireader.backend.config.Neo4jDateTimeConfig" level="TRACE" additivity="false">
+        <appender-ref ref="NEO4J_FILE" />
+        <appender-ref ref="CONSOLE" />
+    </logger>
+    
+    <logger name="com.aireader.backend.config.Neo4jDateTimeConfigListener" level="TRACE" additivity="false">
+        <appender-ref ref="NEO4J_FILE" />
+        <appender-ref ref="CONSOLE" />
+    </logger>
+    
+    <!-- 知识图谱服务相关日志 - TRACE级别 -->
+    <logger name="com.aireader.backend.service.impl.KnowledgeGraphServiceImpl" level="TRACE" additivity="false">
+        <appender-ref ref="NEO4J_FILE" />
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE" />
+    </logger>
+    
+    <!-- 知识服务相关日志 - TRACE级别 -->
+    <logger name="com.aireader.backend.service.impl.KnowledgeServiceImpl" level="TRACE" additivity="false">
+        <appender-ref ref="NEO4J_FILE" />
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE" />
+    </logger>
+    
+    <!-- HTTP客户端日志 - TRACE级别 -->
+    <logger name="org.springframework.web.client" level="TRACE" additivity="false">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE" />
+    </logger>
+    
+    <!-- 根日志级别 - 改为WARN -->
+    <root level="WARN">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="FILE" />
+        <appender-ref ref="ERROR_FILE" />
+    </root>
+</configuration> 

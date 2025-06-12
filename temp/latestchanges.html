@@ -1,0 +1,14 @@
+<ul>
+<li>PLATFORM: Initial JDK22 support added.</li>
+<li>PLAFTORM  Added support for Eclipse 2024-03. .</li>
+<li>PLATFORM: Added support for recent versions of eclipse (released Q4 2023 or later or so) which would cause failures in the eclipse logs such as <code>java.lang.NoSuchMethodError: 'java.lang.StringBuffer org.eclipse.jdt…</code>. .</li>
+<li>FEATURE: <code>@Locked</code> has been introduced. Like <code>@Synchronized</code> but with <code>java.util.concurrent.locks</code> locks instead of the <code>synchronized</code> primitive. Thanks, Pim van der Loos for the PR! .</li>
+<li>NECROMANCY: Inlining a generated getter in eclipse would result in eclipse incorrectly replacing calls with <code>@Getter</code> instead of the actual field's name. . This issue is almost old enough to drink. Points for dedication go to Rawi for fixing this one.</li>
+<li>BUGFIX: When <code>@SuperBuilder</code> was used on a type with an annotated generic type, it would error <code>wrong number of type arguments</code>.  .</li>
+<li>BUGFIX: It was possible to create an infinite build loop using <code>@ExtensionMethod</code>. .</li>
+<li>BUGFIX: Using <code>@Getter(lazy=true)</code> would fail if the expression contained a variable called <code>value</code>. .</li>
+<li>BUGFIX: Many lombok features wouldn't work properly on records contained within an outer type unless you explicitly marked it <code>static</code>.  .</li>
+<li>BUGFIX: Eclipse projects using the <code>com.pro-crafting.tools:jasperreports-plugin</code> will now compile.</li>
+<li>BUGFIX: <code>@FieldNameConstants</code> now works when generated fields are involved. .</li>
+<li>IMPROBABLE BREAKING CHANGE: For JSpecify, the package name changed from <code>org.jspecify.nullness</code> to <code>org.jspecify.annotations</code>, which might lead to a different null analysis. .</li>
+</ul>

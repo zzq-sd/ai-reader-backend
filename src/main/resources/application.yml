@@ -1,0 +1,191 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api/v1
+
+spring:
+  application:
+    name: ai-reader-backend
+  
+  # 主配置
+  main:
+    allow-bean-definition-overriding: true
+  
+  # 禁用Spring Boot的Neo4j自动配置
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.neo4j.Neo4jAutoConfiguration
+  
+  # 数据源配置 (MySQL)
+  datasource:
+    url: jdbc:mysql://localhost:3306/ai_reader_db?serverTimezone=Asia/Shanghai&useUnicode=true&characterEncoding=utf-8&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: ZZQ123456zzq
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 30000
+      connection-timeout: 30000
+  
+  # JPA配置
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  
+  # MongoDB配置
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/ai_reader
+    
+    # Neo4j配置 - 适配Spring Boot 3.x
+    neo4j:
+      # 连接URI
+      uri: bolt://localhost:7687
+      # 认证信息
+      authentication:
+        username: neo4j
+        password: ZZQ123456zzq
+      # 连接池设置
+      pool:
+        max-connection-lifetime: 1h
+        max-connection-pool-size: 50
+  
+  # RabbitMQ配置
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+    listener:
+      simple:
+        retry:
+          enabled: true
+          initial-interval: 5000
+          max-attempts: 3
+          multiplier: 2
+          max-interval: 30000
+    template:
+      exchange: rss.exchange  # 取消注释，启用默认交换机配置
+      routing-key:
+        article-processing: article.analysis
+        rss-fetch: rss.fetch
+        knowledge-graph: knowledge.graph.update
+  
+  # 文件上传配置
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 15MB
+      
+  # 集成Spring AI 1.0正式版配置
+  ai:
+    # DeepSeek配置
+    deepseek:
+      # API密钥 - 请替换为有效的DeepSeek API密钥
+      api-key: ${DEEPSEEK_API_KEY:sk-6045ee9664ee4506867032d848bd738c} # 建议使用环境变量配置API密钥
+      # API基础URL - 可以配置为自建代理或官方API
+      base-url: https://api.deepseek.com
+      
+      # 聊天模型配置
+      chat:
+        # 模型选项
+        options:
+          # 使用的模型
+          model: deepseek-chat
+          
+          # 温度参数 (0-1之间，越低越精确，越高越创造性)
+          temperature: 0.7
+          
+          # 最大标记数
+          max-tokens: 2000
+          
+          # 流式响应设置
+          stream: false
+    
+    # 智谱AI配置
+    zhipuai:
+      # API密钥 - 请替换为有效的智谱AI API密钥
+      api-key: ${ZHIPUAI_API_KEY:b964d8c254e64de4982a18c5e917fdcf.m95mUgdgdL89vFoq} # 建议使用环境变量配置API密钥
+      # API基础URL - 智谱AI官方API地址
+      base-url: https://open.bigmodel.cn/api/paas
+      
+      # 聊天模型配置
+      chat:
+        # 模型选项
+        options:
+          # 使用的模型 - GLM-4-Flash快速版本
+          model: GLM-4-Flash
+          
+          # 温度参数 (0-1之间)
+          temperature: 0.8
+          
+          # 最大标记数
+          max-tokens: 6000
+          
+    # 多模型支持配置
+    model:
+      # 默认使用的聊天模型，可选值：deepseek、zhipuai
+      chat: zhipuai
+
+# JWT配置
+jwt:
+  secret: 84c7ec5d1c43cdd16d9659b42c1cd91f7ba5b2d12c7e49fda90bda9e0e97cfa9
+  access-token-expiration: 3600000  # 1小时
+  refresh-token-expiration: 604800000  # 7天
+
+# 自定义RSS配置
+rss:
+  fetch:
+    cron: 0 0 */6 * * *  # 每6小时抓取一次RSS源
+    timeout: 30000  # 请求超时时间（毫秒）
+
+# RSSHub相关配置
+rsshub:
+  instances: http://localhost:1200,https://rsshub.app  # 优先使用本地实例
+  timeout: 15000  # 增加请求超时时间（毫秒）
+  cache-ttl: 3600  # 缓存有效期（秒）
+
+# 日志配置 - 优化为只显示关键信息
+logging:
+  level:
+    root: WARN  # 根日志级别设为WARN
+    com.aireader.backend: INFO  # 我们的业务代码INFO级别
+    com.aireader.backend.ai: INFO  # AI相关服务
+    com.aireader.backend.service: INFO  # 业务服务层
+    com.aireader.backend.controller: INFO  # 控制器层
+    # 关键框架组件
+    org.springframework.boot: INFO  # Spring Boot启动INFO
+    org.springframework.boot.web.embedded: INFO  # 内嵌服务器INFO
+    org.springframework.boot.autoconfigure: INFO  # 自动配置INFO
+    org.springframework.security.web: INFO  # 安全框架INFO
+    org.springframework.ai: INFO  # Spring AI INFO级别
+    org.hibernate.SQL: INFO  # 只显示SQL语句
+    # 数据库连接相关
+    com.zaxxer.hikari: INFO  # 数据库连接池
+    # 错误信息保持显示
+    org.springframework.boot.diagnostics: INFO  # 诊断信息显示
+
+# SpringDoc OpenAPI配置
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+  packages-to-scan: com.aireader.backend.controller
+
+# Actuator端点配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized 

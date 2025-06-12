@@ -1,0 +1,24 @@
+# .gitignore 文件内容示例
+
+# Logs
+/logs/
+*.log
+
+# Node.js
+/node_modules/
+
+# Python
+/venv/
+/env/
+__pycache__/
+*.pyc
+
+# OS generated files
+.DS_Store
+
+# IDE files
+.idea/
+.vscode/
+
+# Secrets
+.env

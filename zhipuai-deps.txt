@@ -1,0 +1,4 @@
+digraph "com.aireader:ai-reader-backend:jar:0.0.1-SNAPSHOT" { 
+	"com.aireader:ai-reader-backend:jar:0.0.1-SNAPSHOT" -> "org.springframework.ai:spring-ai-starter-model-zhipuai:jar:1.0.0:compile" ; 
+	"org.springframework.ai:spring-ai-starter-model-zhipuai:jar:1.0.0:compile" -> "org.springframework.ai:spring-ai-zhipuai:jar:1.0.0:compile" ; 
+ } 
