@@ -1,8 +1,8 @@
 package com.aireader.backend.consumer;
 
 import com.aireader.backend.ai.EnhancedAiAnalysisService;
-import com.aireader.backend.ai.ArticleAnalysisResult;
-import com.aireader.backend.ai.NoteAnalysisResult;
+import com.aireader.backend.dto.ai.ArticleAnalysisResult;
+import com.aireader.backend.dto.ai.NoteAnalysisResult;
 import com.aireader.backend.config.KnowledgeGraphRabbitConfig;
 import com.aireader.backend.model.jpa.ArticleMetadata;
 import com.aireader.backend.model.jpa.Note;

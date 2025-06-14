@@ -1,9 +1,9 @@
 package com.aireader.backend.service.impl;
 
-import com.aireader.backend.ai.ArticleAnalysisResult;
 import com.aireader.backend.ai.EnhancedAiAnalysisService;
 import com.aireader.backend.ai.KnowledgeConfigService;
-import com.aireader.backend.ai.NoteAnalysisResult;
+import com.aireader.backend.dto.ai.ArticleAnalysisResult;
+import com.aireader.backend.dto.ai.NoteAnalysisResult;
 import com.aireader.backend.dto.ConceptDetailDTO;
 import com.aireader.backend.dto.ConceptSearchResultDTO;
 import com.aireader.backend.dto.ConceptStatisticsDTO;
@@ -13,7 +13,6 @@ import com.aireader.backend.repository.neo4j.ArticleNodeRepository;
 import com.aireader.backend.repository.neo4j.ConceptNodeRepository;
 import com.aireader.backend.repository.neo4j.NoteNodeRepository;
 import com.aireader.backend.service.KnowledgeGraphService;
-
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;

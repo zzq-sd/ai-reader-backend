@@ -1,5 +1,7 @@
 package com.aireader.backend.ai;
 
+import com.aireader.backend.dto.ai.ArticleAnalysisResult;
+import com.aireader.backend.dto.ai.NoteAnalysisResult;
 import com.fasterxml.jackson.annotation.JsonClassDescription;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -7,7 +9,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -23,24 +24,14 @@ import java.util.stream.Collectors;
 @Slf4j
 public class EnhancedAiAnalysisService {
 
-    private final ChatClient chatClient;
-    private final ChatClient ragChatClient;
+    private final ChatModelProvider chatModelProvider;
     private final ObjectMapper objectMapper;
 
     @Autowired
-    public EnhancedAiAnalysisService(
-            @Qualifier("chatClient") @Autowired(required = false) ChatClient chatClient,
-            @Qualifier("ragChatClient") @Autowired(required = false) ChatClient ragChatClient,
-            ObjectMapper objectMapper) {
-        this.chatClient = chatClient;
-        this.ragChatClient = ragChatClient;
+    public EnhancedAiAnalysisService(ChatModelProvider chatModelProvider, ObjectMapper objectMapper) {
+        this.chatModelProvider = chatModelProvider;
         this.objectMapper = objectMapper;
-        
-        if (chatClient != null) {
-            log.info("✅ 增强AI分析服务初始化完成 - Spring AI 1.0.0");
-        } else {
-            log.warn("⚠️ ChatClient未配置，AI分析功能将不可用");
-        }
+        log.info("✅ 增强AI分析服务初始化完成 - Spring AI 1.0.0. 使用 ChatModelProvider 动态创建 ChatClient。");
     }
 
     /**
@@ -50,10 +41,13 @@ public class EnhancedAiAnalysisService {
     public ArticleAnalysisResult analyzeArticleWithStructuredOutput(String articleId, String title, String content) {
         log.info("🧠 开始结构化AI分析文章: {}", articleId);
         
-        if (chatClient == null) {
-            log.warn("⚠️ ChatClient未配置，返回空的分析结果");
-            return createEmptyArticleAnalysisResult(articleId);
-        }
+        // 动态获取默认模型（例如 deepseek）创建ChatClient
+        ChatClient chatClient = chatModelProvider.getChatModel("deepseek")
+                .map(ChatClient::create)
+                .orElseThrow(() -> {
+                    log.error("❌ 获取deepseek模型失败，无法分析文章");
+                    return new IllegalStateException("默认的deepseek模型不可用");
+                });
         
         try {
             // 使用结构化输出分析文章
@@ -80,10 +74,13 @@ public class EnhancedAiAnalysisService {
     public ConceptExtractionResponse extractConceptsWithRelations(String content) {
         log.info("🔍 开始提取概念和关系，内容长度: {}", content.length());
         
-        if (chatClient == null) {
-            log.warn("⚠️ ChatClient未配置，返回空的概念提取结果");
-            return new ConceptExtractionResponse(List.of(), List.of());
-        }
+        // 动态获取默认模型（例如 deepseek）创建ChatClient
+        ChatClient chatClient = chatModelProvider.getChatModel("deepseek")
+                .map(ChatClient::create)
+                .orElseThrow(() -> {
+                    log.error("❌ 获取deepseek模型失败，无法提取概念");
+                    return new IllegalStateException("默认的deepseek模型不可用");
+                });
         
         try {
             ConceptExtractionResponse response = chatClient.prompt()
@@ -110,10 +107,13 @@ public class EnhancedAiAnalysisService {
     public ConceptExtractionResponse extractConceptsWithRelationsCustomPrompt(String customPrompt) {
         log.info("🔍 开始使用自定义提示词提取概念和关系");
         
-        if (chatClient == null) {
-            log.warn("⚠️ ChatClient未配置，返回空的概念提取结果");
-            return new ConceptExtractionResponse(List.of(), List.of());
-        }
+        // 动态获取默认模型（例如 deepseek）创建ChatClient
+        ChatClient chatClient = chatModelProvider.getChatModel("deepseek")
+                .map(ChatClient::create)
+                .orElseThrow(() -> {
+                    log.error("❌ 获取deepseek模型失败，无法使用自定义提示词提取概念");
+                    return new IllegalStateException("默认的deepseek模型不可用");
+                });
         
         try {
             // 确保自定义提示词包含必要的指导
@@ -140,10 +140,13 @@ public class EnhancedAiAnalysisService {
     public String analyzeWithKnowledgeContext(String content, String articleId) {
         log.info("🔗 开始RAG增强分析: {}", articleId);
         
-        if (ragChatClient == null) {
-            log.warn("⚠️ RAG ChatClient未配置，返回默认分析结果");
-            return "RAG分析服务不可用，无法提供增强分析";
-        }
+        // RAG场景通常也需要特定的模型或配置，此处暂时也用deepseek，可根据需求调整
+        ChatClient ragChatClient = chatModelProvider.getChatModel("deepseek")
+                .map(ChatClient::create)
+                .orElseThrow(() -> {
+                    log.error("❌ 获取deepseek模型失败，无法进行RAG分析");
+                    return new IllegalStateException("用于RAG的deepseek模型不可用");
+                });
         
         try {
             String response = ragChatClient.prompt()
@@ -166,11 +169,14 @@ public class EnhancedAiAnalysisService {
     public NoteAnalysisResult analyzeNoteWithStructuredOutput(String noteId, String title, String content) {
         log.info("📝 开始结构化AI分析笔记: {}", noteId);
         
-        if (chatClient == null) {
-            log.warn("⚠️ ChatClient未配置，返回空的笔记分析结果");
-            return createEmptyNoteAnalysisResult(noteId);
-        }
-        
+        // 动态获取智谱（glm）模型创建ChatClient，专门用于笔记分析
+        ChatClient chatClient = chatModelProvider.getChatModel("zhipuai")
+                .map(ChatClient::create)
+                .orElseThrow(() -> {
+                    log.error("❌ 获取zhipuai模型失败，无法分析笔记");
+                    return new IllegalStateException("笔记分析所需的zhipuai模型不可用");
+                });
+
         try {
             StructuredNoteAnalysis analysis = chatClient.prompt()
                 .user(buildNoteAnalysisPrompt(title, content))
@@ -302,56 +308,23 @@ public class EnhancedAiAnalysisService {
      */
     private NoteAnalysisResult convertToNoteAnalysisResult(String noteId, StructuredNoteAnalysis analysis) {
         List<ArticleAnalysisResult.ConceptEntity> concepts = analysis.concepts().stream()
-            .map(c -> ArticleAnalysisResult.ConceptEntity.builder()
-                .name(c.name())
-                .type(c.type())
-                .confidence(c.confidence())
-                .context(c.context())
-                .frequency(1)
-                .build())
-            .collect(Collectors.toList());
+                .map(c -> ArticleAnalysisResult.ConceptEntity.builder()
+                        .name(c.name())
+                        .type(c.type())
+                        .confidence(c.confidence())
+                        .context(c.context())
+                        .build())
+                .collect(Collectors.toList());
 
         return NoteAnalysisResult.builder()
-            .noteId(noteId)
-            .enhancedSummary(analysis.summary())
-            .keyPoints(analysis.keyPoints())
-            .extractedConcepts(concepts)
-            .intelligentTags(analysis.tags())
-            .topic(analysis.topic())
-            .keywords(concepts.stream().map(ArticleAnalysisResult.ConceptEntity::getName).collect(Collectors.toList()))
-            .build();
-    }
-
-    /**
-     * 创建空的文章分析结果（当ChatClient不可用时）
-     */
-    private ArticleAnalysisResult createEmptyArticleAnalysisResult(String articleId) {
-        return ArticleAnalysisResult.builder()
-            .articleId(articleId)
-            .summary("AI分析服务不可用")
-            .keyPoints(List.of())
-            .concepts(List.of())
-            .intelligentTags(List.of())
-            .sentiment("NEUTRAL")
-            .category("未分类")
-            .readingTimeMinutes(5)
-            .keywords(List.of())
-            .build();
-    }
-
-    /**
-     * 创建空的笔记分析结果（当ChatClient不可用时）
-     */
-    private NoteAnalysisResult createEmptyNoteAnalysisResult(String noteId) {
-        return NoteAnalysisResult.builder()
-            .noteId(noteId)
-            .enhancedSummary("AI分析服务不可用")
-            .keyPoints(List.of())
-            .extractedConcepts(List.of())
-            .intelligentTags(List.of())
-            .topic("未分析")
-            .keywords(List.of())
-            .build();
+                .noteId(noteId)
+                .enhancedSummary(analysis.summary())
+                .keyPoints(analysis.keyPoints())
+                .extractedConcepts(concepts)
+                .intelligentTags(analysis.tags())
+                .topic(analysis.topic())
+                .keywords(concepts.stream().map(ArticleAnalysisResult.ConceptEntity::getName).collect(Collectors.toList()))
+                .build();
     }
 
     // ====================== 结构化输出模型 ======================

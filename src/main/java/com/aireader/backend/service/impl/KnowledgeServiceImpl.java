@@ -1,8 +1,8 @@
 package com.aireader.backend.service.impl;
 
-import com.aireader.backend.ai.AiService;
-import com.aireader.backend.ai.ArticleAnalysisResult;
-import com.aireader.backend.ai.NoteAnalysisResult;
+import com.aireader.backend.service.AiService;
+import com.aireader.backend.dto.ai.ArticleAnalysisResult;
+import com.aireader.backend.dto.ai.NoteAnalysisResult;
 import com.aireader.backend.dto.ArticleDTO;
 import com.aireader.backend.model.constant.Neo4jRelationshipTypes;
 import com.aireader.backend.dto.ConceptDetailDTO;
@@ -825,7 +825,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     }
     
     // 辅助方法：转换查询结果为RelatedItemDto
-    private List<RelatedItemDto> transformToRelatedItemDto(List<Map<String, Object>> results) {
+    private List<RelatedItemDto> transformToRelatedItemDto(Collection<Map<String, Object>> results) {
         List<RelatedItemDto> dtos = new ArrayList<>();
         
         for (Map<String, Object> row : results) {
@@ -1002,7 +1002,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
                 queryResults = new ArrayList<>(resultCollection);
                 //log.info("【知识图谱】3.4 查询成功，返回结果数: {}", queryResults.size());
                 // queryResults = new ArrayList<>(resultCollection); // 已有此行
-                log.info("【知识图谱】3.4 查询成功，返回原始结果数: {}", queryResults.size()); // 修改日志，强调是“原始”
+                log.info("【知识图谱】3.4 查询成功，返回原始结果数: {}", queryResults.size()); // 修改日志，强调是"原始"
                 if (!queryResults.isEmpty()) {
                      log.info("【知识图谱】3.4.1 原始查询结果第一条记录: {}", queryResults.get(0)); // 记录第一条的完整内容
                 }else {

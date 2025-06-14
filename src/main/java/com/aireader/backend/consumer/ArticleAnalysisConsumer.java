@@ -1,7 +1,7 @@
 package com.aireader.backend.consumer;
 
-import com.aireader.backend.ai.AiService;
-import com.aireader.backend.ai.ArticleAnalysisResult;
+import com.aireader.backend.service.AiService;
+import com.aireader.backend.dto.ai.ArticleAnalysisResult;
 import com.aireader.backend.config.RabbitMQConfig;
 import com.aireader.backend.config.KnowledgeGraphRabbitConfig;
 import com.aireader.backend.model.jpa.ArticleMetadata;

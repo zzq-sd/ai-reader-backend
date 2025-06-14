@@ -1,8 +1,8 @@
 package com.aireader.backend.consumer;
 
-import com.aireader.backend.ai.AiService;
-import com.aireader.backend.ai.ArticleAnalysisResult;
-import com.aireader.backend.ai.NoteAnalysisResult;
+import com.aireader.backend.service.AiService;
+import com.aireader.backend.dto.ai.ArticleAnalysisResult;
+import com.aireader.backend.dto.ai.NoteAnalysisResult;
 import com.aireader.backend.config.RabbitMQConfig;
 import com.aireader.backend.config.KnowledgeGraphRabbitConfig;
 import com.aireader.backend.model.jpa.Note;
@@ -212,9 +212,9 @@ public class NoteAnalysisConsumer {
             
             // 转换概念实体
             if (analysisResult.getExtractedConcepts() != null && !analysisResult.getExtractedConcepts().isEmpty()) {
-                ArticleAnalysisResult.ConceptEntity[] conceptEntities = 
+                com.aireader.backend.dto.ai.ArticleAnalysisResult.ConceptEntity[] conceptEntities = 
                     analysisResult.getExtractedConcepts().stream()
-                        .toArray(ArticleAnalysisResult.ConceptEntity[]::new);
+                        .toArray(com.aireader.backend.dto.ai.ArticleAnalysisResult.ConceptEntity[]::new);
                 mongoResult.setExtractedConcepts(conceptEntities);
             }
             

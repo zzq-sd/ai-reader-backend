@@ -85,6 +85,17 @@ spring:
       
   # 集成Spring AI 1.0正式版配置
   ai:
+    # 通用重试配置，应用于所有AI模型
+    retry:
+      # 最大尝试次数 (1次初次调用 + 3次重试)
+      max-attempts: 4
+      # 指数退避策略
+      backoff:
+        # 初始重试间隔
+        initial-interval: 2s
+        # 等待时间乘数
+        multiplier: 2
+
     # DeepSeek配置
     deepseek:
       # API密钥 - 请替换为有效的DeepSeek API密钥
@@ -110,28 +121,23 @@ spring:
     
     # 智谱AI配置
     zhipuai:
-      # API密钥 - 请替换为有效的智谱AI API密钥
-      api-key: ${ZHIPUAI_API_KEY:b964d8c254e64de4982a18c5e917fdcf.m95mUgdgdL89vFoq} # 建议使用环境变量配置API密钥
-      # API基础URL - 智谱AI官方API地址
+      # 修正：base-url 应该是API的根路径。Spring AI会自动拼接 /v4/chat/completions 等路径
       base-url: https://open.bigmodel.cn/api/paas
-      
-      # 聊天模型配置
+      # API密钥 - 统一在此处配置，建议使用环境变量。
+      api-key: ${ZHIPU_API_KEY:b964d8c254e64de4982a18c5e917fdcf.m95mUgdgdL89vFoq}
       chat:
         # 模型选项
         options:
-          # 使用的模型 - GLM-4-Flash快速版本
-          model: GLM-4-Flash
-          
-          # 温度参数 (0-1之间)
-          temperature: 0.8
-          
-          # 最大标记数
-          max-tokens: 6000
-          
-    # 多模型支持配置
-    model:
-      # 默认使用的聊天模型，可选值：deepseek、zhipuai
-      chat: zhipuai
+          # 使用的模型ID
+          model: glm-4-flash
+          # 其他模型参数
+          temperature: 0.7
+    
+    # 该属性是配置过滤器，而非默认值，会禁用其他模型，必须移除
+    # model:
+    #   # 默认使用的聊天模型，可选值：deepseek、zhipuai
+    #   # 注意：此处仅为默认值，实际使用的模型由数据库配置决定
+    #   chat: ${AI_DEFAULT_MODEL:deepseek}
 
 # JWT配置
 jwt:

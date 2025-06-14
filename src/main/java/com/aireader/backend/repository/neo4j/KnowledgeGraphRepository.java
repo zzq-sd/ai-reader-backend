@@ -55,11 +55,11 @@ public interface KnowledgeGraphRepository extends Neo4jRepository<ConceptNode, L
      * @param limit 限制数量
      * @return 邻居节点
      */
-    @Query("MATCH (start) WHERE ID(start) = $nodeId " +
+    @Query("MATCH (start) WHERE elementId(start) = $nodeId " +
            "MATCH (start)-[*1..$depth]-(neighbor) " +
            "RETURN DISTINCT neighbor " +
            "LIMIT $limit")
-    List<Object> findNeighborNodes(@Param("nodeId") Long nodeId, 
+    List<Object> findNeighborNodes(@Param("nodeId") String nodeId,
                                   @Param("depth") int depth, 
                                   @Param("limit") int limit);
     
@@ -72,11 +72,11 @@ public interface KnowledgeGraphRepository extends Neo4jRepository<ConceptNode, L
      * @return 路径信息
      */
     @Query("MATCH (start), (end) " +
-           "WHERE ID(start) = $startNodeId AND ID(end) = $endNodeId " +
+           "WHERE elementId(start) = $startNodeId AND elementId(end) = $endNodeId " +
            "MATCH path = shortestPath((start)-[*1..$maxDepth]-(end)) " +
            "RETURN path")
-    Optional<Object> findShortestPath(@Param("startNodeId") Long startNodeId, 
-                                     @Param("endNodeId") Long endNodeId, 
+    Optional<Object> findShortestPath(@Param("startNodeId") String startNodeId,
+                                     @Param("endNodeId") String endNodeId,
                                      @Param("maxDepth") int maxDepth);
     
     /**

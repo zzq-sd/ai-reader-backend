@@ -1,6 +1,6 @@
 package com.aireader.backend.model.mongo;
 
-import com.aireader.backend.ai.ArticleAnalysisResult;
+import com.aireader.backend.dto.ai.ArticleAnalysisResult;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

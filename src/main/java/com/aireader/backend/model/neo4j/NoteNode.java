@@ -1,6 +1,5 @@
 package com.aireader.backend.model.neo4j;
 
-import com.aireader.backend.model.constant.Neo4jRelationshipTypes;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -68,21 +67,21 @@ public class NoteNode {
     @Property("updated_at")
     private LocalDateTime updatedAt;
     
-    // 笔记与文章的关联
-    @Relationship(type = Neo4jRelationshipTypes.NOTE_REFERS_TO, direction = Relationship.Direction.OUTGOING)
+    // 笔记与文章的关联 - 使用标准化的关系类型字符串
+    @Relationship(type = "REFERS_TO", direction = Relationship.Direction.OUTGOING)
     private ArticleNode article;
     
-    // 笔记的创建者
-    @Relationship(type = Neo4jRelationshipTypes.NOTE_CREATED_BY, direction = Relationship.Direction.OUTGOING)
+    // 笔记的创建者 - 使用标准化的关系类型字符串
+    @Relationship(type = "CREATED_BY", direction = Relationship.Direction.OUTGOING)
     private UserNode user;
     
-    // 笔记中提到的概念 - 支持多种关系类型
-    @Relationship(type = Neo4jRelationshipTypes.NOTE_CONTAINS_CONCEPT, direction = Relationship.Direction.OUTGOING)
+    // 笔记中提到的概念 - 使用标准化的关系类型字符串
+    @Relationship(type = "CONTAINS", direction = Relationship.Direction.OUTGOING)
     @Builder.Default
     private Set<NoteConceptRelationship> concepts = new HashSet<>();
     
-    // 笔记的标签
-    @Relationship(type = Neo4jRelationshipTypes.NOTE_TAGGED, direction = Relationship.Direction.OUTGOING)
+    // 笔记的标签 - 使用更规范的HAS_TAG，并使用标准化的关系类型字符串
+    @Relationship(type = "HAS_TAG", direction = Relationship.Direction.OUTGOING)
     @Builder.Default
     private Set<NoteTagRelationship> tags = new HashSet<>();
     

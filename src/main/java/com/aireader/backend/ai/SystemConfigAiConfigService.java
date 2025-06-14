@@ -8,6 +8,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.context.annotation.Primary;
 import org.springframework.core.annotation.Order;
+import org.springframework.context.event.EventListener;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -37,13 +38,13 @@ public class SystemConfigAiConfigService implements AiConfigService {
     private final Map<String, String> configCache = new HashMap<>();
     
     static {
-        // 初始化默认配置
-        DEFAULT_AI_CONFIG.put("ai.default.model", "zhipuai");
-        DEFAULT_AI_CONFIG.put("ai.model.version", "GLM-4-Flash");
-        DEFAULT_AI_CONFIG.put("ai.api.url", "https://open.bigmodel.cn/api/paas");
+        // 初始化默认配置，默认使用DeepSeek，但不会覆盖数据库中的已有配置
+        DEFAULT_AI_CONFIG.put("ai.default.model", "deepseek");
+        DEFAULT_AI_CONFIG.put("ai.model.version", "deepseek-chat");
+        DEFAULT_AI_CONFIG.put("ai.api.url", "https://api.deepseek.com");
         DEFAULT_AI_CONFIG.put("ai.api.key", "");
         DEFAULT_AI_CONFIG.put("ai.timeout", "10");
-        DEFAULT_AI_CONFIG.put("ai.max.tokens", "2000");
+        DEFAULT_AI_CONFIG.put("ai.max.tokens", "7000");
         DEFAULT_AI_CONFIG.put("ai.stream.response", "true");
         DEFAULT_AI_CONFIG.put("ai.temperature", "0.7");
     }
@@ -80,9 +81,25 @@ public class SystemConfigAiConfigService implements AiConfigService {
             }
         }
         
-        // 发布配置加载完成事件
-        eventPublisher.publishEvent(new AiConfigChangedEvent(this));
+        // 发布配置加载完成事件 -  此处发布事件会导致无限递归，应由实际配置变更方发布
+        // eventPublisher.publishEvent(new AiConfigChangedEvent(this));
         log.info("AI配置已加载到缓存，共{}项", configCache.size());
+        
+        // 记录当前使用的模型信息
+        String currentModel = getConfig("ai.default.model");
+        String modelVersion = getConfig("ai.model.version");
+        log.info("当前使用的AI模型: {}/{}", currentModel, modelVersion);
+    }
+    
+    /**
+     * 监听AI配置变更事件，并刷新缓存
+     * @param event 配置变更事件
+     */
+    @EventListener
+    public void handleAiConfigChanged(AiConfigChangedEvent event) {
+        log.info("检测到AI配置发生变更，正在重新加载配置...");
+        loadAllConfigurations();
+        log.info("AI配置已刷新。");
     }
     
     /**
@@ -101,8 +118,24 @@ public class SystemConfigAiConfigService implements AiConfigService {
     }
 
     @Override
+    public String getActiveChatModelName() {
+        return getConfig("ai.default.model");
+    }
+
+    @Override
     public String getApiUrl() {
-        return getConfig("ai.api.url");
+        // 根据当前模型返回正确的API URL
+        String model = getConfig("ai.default.model");
+        if ("deepseek".equals(model)) {
+            return getConfig("ai.api.url").contains("deepseek") ? 
+                getConfig("ai.api.url") : "https://api.deepseek.com";
+        } else if ("zhipuai".equals(model)) {
+            return getConfig("ai.api.url").contains("bigmodel") ? 
+                getConfig("ai.api.url") : "https://open.bigmodel.cn/api/paas";
+        } else {
+            // 其他模型使用配置中的API URL
+            return getConfig("ai.api.url");
+        }
     }
 
     @Override
@@ -120,8 +153,18 @@ public class SystemConfigAiConfigService implements AiConfigService {
         try {
             return Integer.parseInt(getConfig("ai.max.tokens"));
         } catch (NumberFormatException e) {
-            log.warn("无效的最大令牌数配置值，使用默认值: 2000");
-            return 2000; // 默认2000
+            // 根据当前模型返回合适的默认令牌数
+            String model = getConfig("ai.default.model");
+            if ("deepseek".equals(model)) {
+                log.warn("无效的最大令牌数配置值，使用DeepSeek默认值: 7000");
+                return 7000; // DeepSeek默认值
+            } else if ("zhipuai".equals(model)) {
+                log.warn("无效的最大令牌数配置值，使用GLM默认值: 6000");
+                return 6000; // GLM默认值
+            } else {
+                log.warn("无效的最大令牌数配置值，使用通用默认值: 4000");
+                return 4000; // 通用默认值
+            }
         }
     }
     

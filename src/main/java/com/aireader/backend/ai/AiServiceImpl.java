@@ -1,15 +1,31 @@
 package com.aireader.backend.ai;
 
+import com.aireader.backend.dto.ai.ArticleAnalysisRequest;
+import com.aireader.backend.dto.ai.ArticleAnalysisResult;
+import com.aireader.backend.dto.ai.ArticleSummaryRequest;
+import com.aireader.backend.dto.ai.ArticleSummaryResult;
+import com.aireader.backend.dto.ai.ChatRequest;
+import com.aireader.backend.dto.ai.ChatResponse;
+import com.aireader.backend.dto.ai.NoteAnalysisRequest;
+import com.aireader.backend.dto.ai.NoteAnalysisResult;
+import com.aireader.backend.service.AiService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import java.util.*;
@@ -18,48 +34,33 @@ import java.util.stream.Collectors;
 /**
  * AI服务实现类 - 基于Spring AI 1.0.0
  * 提供文章和笔记的智能分析功能，支持知识图谱构建
+ * 
+ * 注意：此类实现了com.aireader.backend.service.AiService接口
+ * 替代了原有的两个重复的AiService实现
  */
 @Service
 @Slf4j
 public class AiServiceImpl implements AiService {
 
-    private final ChatClient aiAssistantChatClient;
-    private final ChatClient noteChatClient;
     private final ObjectMapper objectMapper;
-    
-    @Autowired
-    @Qualifier("defaultConfigService")
-    private AiConfigService aiConfigService;
-    
-    @Autowired
-    @Qualifier("noteAnalysisConfigService")
-    private AiConfigService noteAnalysisConfigService;
+    private final ChatModelProvider chatModelProvider;
+    private final AiConfigService aiConfigService;
 
+    // 为特定任务指定模型名称
+    @Value("${spring.ai.model.chat.task.note-analysis:zhipuai}")
+    private String noteAnalysisModel;
+    
     @Value("${ai.reading-time.words-per-minute:200}")
     private int wordsPerMinute;
 
     @Autowired
     public AiServiceImpl(
-            @Qualifier("chatClient") @Autowired(required = false) ChatClient aiAssistantChatClient,
-            @Qualifier("noteChatClient") @Autowired(required = false) ChatClient noteChatClient,
-            ObjectMapper objectMapper) {
-        this.aiAssistantChatClient = aiAssistantChatClient;
-        this.noteChatClient = noteChatClient;
+            ObjectMapper objectMapper,
+            ChatModelProvider chatModelProvider,
+            AiConfigService aiConfigService) {
         this.objectMapper = objectMapper;
-        
-        // 检查ChatClient是否可用
-        if (aiAssistantChatClient == null) {
-            log.warn("⚠️ AI助手ChatClient未配置，AI功能将不可用");
-            log.warn("💡 请检查application.yml中的spring.ai配置");
-        } else {
-            log.info("✅ Spring AI 1.0.0 AI助手ChatClient已配置，AI功能可用");
-        }
-        
-        if (noteChatClient == null) {
-            log.warn("⚠️ 笔记分析ChatClient未配置，笔记分析功能将不可用");
-        } else {
-            log.info("✅ Spring AI 1.0.0 笔记分析ChatClient已配置，笔记分析功能可用");
-        }
+        this.chatModelProvider = chatModelProvider;
+        this.aiConfigService = aiConfigService;
     }
     
     /**
@@ -68,8 +69,7 @@ public class AiServiceImpl implements AiService {
     @PostConstruct
     public void init() {
         log.info("初始化AI服务...");
-        // 在依赖注入完成后测试连接
-        testAiConnection();
+        testAndLogConnection();
     }
     
     /**
@@ -79,133 +79,31 @@ public class AiServiceImpl implements AiService {
     @EventListener
     public void handleAiConfigChangedEvent(AiConfigService.AiConfigChangedEvent event) {
         log.info("接收到AI配置变更事件，重新加载AI服务设置");
-        
-        // 可以在这里处理配置更改
-        // 例如，更新模型选择或其他动态配置
-        
-        // 测试连接以确保新配置是有效的
-        testAiConnection();
+        testAndLogConnection();
     }
     
     /**
-     * 测试AI服务连接
+     * 服务初始化时，测试并记录所有ChatClient的可用状态
      */
-    private void testAiConnection() {
-        try {
-            log.info("🔍 开始测试AI服务连接...");
-            log.info("📋 ChatClient配置状态: {}", aiAssistantChatClient != null ? "已配置" : "未配置");
-            
-            if (aiAssistantChatClient == null) {
-                log.error("❌ AI助手ChatClient为null，AI功能不可用");
-                return;
-            }
-            
-            // 安全地获取当前AI配置
-            if (aiConfigService == null) {
-                log.error("❌ AiConfigService为null，无法获取AI配置");
-                return;
-            }
-            
-            // 获取当前AI配置
-            String model = aiConfigService.getCurrentModel();
-            String apiUrl = aiConfigService.getApiUrl();
-            int timeout = aiConfigService.getTimeoutSeconds();
-            
-            log.info("🔧 当前配置: 模型={}, API URL={}, 超时={}秒", model, apiUrl, timeout);
-            
-            // 检查是否是DeepSeek模型
-            boolean isDeepSeek = model.toLowerCase().contains("deepseek");
-            
-            try {
-                // 简单的连接测试
-                String testResponse = aiAssistantChatClient.prompt()
-                        .user("Hello")
-                        .call()
-                        .content();
-                
-                log.info("✅ AI服务连接测试成功，响应: {}", testResponse.substring(0, Math.min(50, testResponse.length())));
-            } catch (UnsupportedOperationException e) {
-                // 检查是否是代理模型引起的问题
-                if (e.getMessage() != null && e.getMessage().contains("代理ChatModel不支持实际调用")) {
-                    log.error("❌ AI服务连接测试失败: 检测到代理ChatModel");
-                    log.error("🔧 错误类型: {}", e.getClass().getSimpleName());
-                    log.error("📝 错误消息: {}", e.getMessage());
-                    
-                    if (isDeepSeek) {
-                        log.error("🤖 DeepSeek模型配置问题，请检查:");
-                        log.error("   1. spring-ai-deepseek 依赖是否已添加到项目中");
-                        log.error("   2. DeepSeek API密钥是否已正确配置");
-                        log.error("   3. DeepSeek API URL是否正确设置");
-                        log.error("   4. 确认 'deepseek' 已配置为默认模型");
-                    } else {
-                        log.error("🤖 模型配置问题，请检查:");
-                        log.error("   1. GLM模型名称是否正确");
-                        log.error("   2. 账户是否有权限使用该模型");
-                    }
-                } else {
-                    // 其他不支持的操作异常
-                    throw e;
-                }
-            }
-        } catch (Exception e) {
-            log.error("❌ AI服务连接测试失败，详细错误信息:");
-            log.error("🔧 错误类型: {}", e.getClass().getSimpleName());
-            log.error("📝 错误消息: {}", e.getMessage());
-            
-            // 安全地获取当前AI配置
-            if (aiConfigService != null) {
-                // 获取当前AI配置
-                String model = aiConfigService.getCurrentModel();
-                boolean isDeepSeek = model.toLowerCase().contains("deepseek");
-                
-                // 检查是否是API密钥问题
-                if (e.getMessage() != null) {
-                    if (e.getMessage().contains("401") || e.getMessage().contains("Unauthorized") || e.getMessage().contains("Invalid API Key")) {
-                        if (isDeepSeek) {
-                            log.error("🔑 DeepSeek API密钥验证失败，请检查:");
-                            log.error("   1. DeepSeek API密钥格式是否正确");
-                            log.error("   2. DeepSeek API密钥是否有效且未过期");
-                            log.error("   3. 账户是否有足够的额度");
-                            log.error("   4. 环境变量DEEPSEEK_API_KEY是否已正确设置");
-                        } else {
-                            log.error("🔑 API密钥验证失败，请检查:");
-                            log.error("   1. API密钥格式是否正确");
-                            log.error("   2. API密钥是否有效且未过期");
-                            log.error("   3. 账户是否有足够的额度");
-                            log.error("   4. 环境变量ZHIPUAI_API_KEY是否已正确设置");
-                        }
-                    } else if (e.getMessage().contains("timeout") || e.getMessage().contains("connect") || e.getMessage().contains("server authentication")) {
-                        if (isDeepSeek) {
-                            log.error("🌐 网络连接或身份验证问题，请检查:");
-                            log.error("   1. DeepSeek AI服务是否可访问");
-                            log.error("   2. DeepSeek base-url配置是否正确");
-                            log.error("   3. 网络连接是否正常");
-                            log.error("   4. 防火墙或代理设置是否正确");
-                        } else {
-                            log.error("🌐 网络连接或身份验证问题，请检查:");
-                            log.error("   1. 智谱AI服务是否可访问");
-                            log.error("   2. base-url配置是否正确");
-                            log.error("   3. 网络连接是否正常");
-                            log.error("   4. 防火墙或代理设置是否正确");
-                        }
-                    } else if (e.getMessage().contains("model") || e.getMessage().contains("Model")) {
-                        if (isDeepSeek) {
-                            log.error("🤖 DeepSeek模型配置问题，请检查:");
-                            log.error("   1. DeepSeek模型名称是否正确");
-                            log.error("   2. 账户是否有权限使用该模型");
-                        } else {
-                            log.error("🤖 模型配置问题，请检查:");
-                            log.error("   1. GLM模型名称是否正确");
-                            log.error("   2. 账户是否有权限使用该模型");
-                        }
-                    }
-                }
-            } else {
-                log.error("⚠️ AiConfigService为null，无法提供详细的错误诊断");
-            }
-            
-            log.warn("⚠️ AI服务连接失败，将使用降级策略处理分析请求");
-        }
+    private void testAndLogConnection() {
+        log.info("🔍 开始测试AI服务连接...");
+        String activeChatModelName = aiConfigService.getActiveChatModelName();
+        log.info("当前数据库配置的激活聊天模型为: '{}'", activeChatModelName);
+
+        chatModelProvider.getChatModel(activeChatModelName)
+                .ifPresentOrElse(
+                        model -> log.info("✅ 激活的聊天模型 '{}' 已成功加载.", activeChatModelName),
+                        () -> log.error("❌ 激活的聊天模型 '{}' 未找到或加载失败!", activeChatModelName)
+                );
+        
+        log.info("笔记分析模型固定为: '{}'", noteAnalysisModel);
+        chatModelProvider.getChatModel(noteAnalysisModel)
+                .ifPresentOrElse(
+                        model -> log.info("✅ 笔记分析模型 '{}' 已成功加载.", noteAnalysisModel),
+                        () -> log.error("❌ 笔记分析模型 '{}' 未找到或加载失败!", noteAnalysisModel)
+                );
+
+        log.info("✅ AI服务连接测试完成");
     }
 
     @Override
@@ -256,6 +154,11 @@ public class AiServiceImpl implements AiService {
     @Override
     public ArticleAnalysisResult analyzeArticle(String articleId, String title, String content) {
         log.info("开始AI分析文章: {}", articleId);
+        
+        // AI分析功能统一使用笔记分析的配置
+        ChatClient chatClient = chatModelProvider.getChatModel(noteAnalysisModel)
+                .map(ChatClient::create)
+                .orElseThrow(() -> new IllegalStateException("笔记分析所需的AI模型 '" + noteAnalysisModel + "' 不可用。"));
         
         try {
             // 获取当前AI配置
@@ -309,26 +212,20 @@ public class AiServiceImpl implements AiService {
     
     @Override
     public NoteAnalysisResult analyzeNote(String noteId, String title, String content) {
-        log.info("分析笔记: ID={}, 标题={}, 内容长度={}", noteId, title, content.length());
-        
+        log.info("开始AI分析笔记: {}", noteId);
+
+        ChatClient chatClient = chatModelProvider.getChatModel(noteAnalysisModel)
+                .map(ChatClient::create)
+                .orElseThrow(() -> new IllegalStateException("笔记分析所需的AI模型 '" + noteAnalysisModel + "' 不可用。"));
+
         try {
-            // 确保使用专用于笔记分析的ChatClient，它应该使用固定的ZhipuAI模型
-            // 这确保了笔记分析模块与全局模型变更隔离
-            if (noteChatClient == null) {
-                log.error("笔记分析ChatClient未配置，无法进行分析");
-                return createFallbackNoteAnalysis(noteId, title, content);
-            }
-            
-            // 截断过长的内容，以适应模型的token限制
-            String truncatedContent = truncateContent(content, 5000);
-            
-            // 提取概念和关键信息
-            List<ArticleAnalysisResult.ConceptEntity> concepts = extractConceptsForNote(truncatedContent);
-            String summary = generateSummaryForNote(truncatedContent);
-            List<String> keyPoints = extractKeyPointsForNote(truncatedContent);
-            List<String> tags = generateIntelligentTagsForNote(truncatedContent, title);
-            String sentiment = analyzeSentimentForNote(truncatedContent);
-            String category = generateCategoryForNote(truncatedContent);
+            // 1. 概念提取
+            List<ArticleAnalysisResult.ConceptEntity> concepts = extractConceptsForNote(content);
+            String summary = generateSummaryForNote(content);
+            List<String> keyPoints = extractKeyPointsForNote(content);
+            List<String> tags = generateIntelligentTagsForNote(content, title);
+            String sentiment = analyzeSentimentForNote(content);
+            String category = generateCategoryForNote(content);
             
             // 构建笔记分析结果
             NoteAnalysisResult result = NoteAnalysisResult.builder()
@@ -445,11 +342,13 @@ public class AiServiceImpl implements AiService {
      * 从文本中提取概念实体
      */
     private List<ArticleAnalysisResult.ConceptEntity> extractConcepts(String content) {
-        if (aiAssistantChatClient == null) {
-            log.warn("AI助手ChatClient未配置，跳过概念提取");
-            return Collections.emptyList();
-        }
-        
+        log.info("开始提取概念...");
+        String truncatedContent = truncateContent(content, 16000);
+
+        ChatClient chatClient = chatModelProvider.getChatModel(noteAnalysisModel)
+                .map(ChatClient::create)
+                .orElseThrow(() -> new IllegalStateException("笔记分析所需的AI模型 '" + noteAnalysisModel + "' 不可用。"));
+
         String prompt = """
             作为知识图谱专家，从以下内容中提取5-10个核心概念。
             
@@ -476,12 +375,12 @@ public class AiServiceImpl implements AiService {
             
             内容：
             %s
-            """.formatted(content);
+            """.formatted(truncatedContent);
             
         try {
-            log.debug("🤖 开始调用AI进行概念提取，内容长度: {}", content.length());
+            log.debug("🤖 开始调用AI进行概念提取，内容长度: {}", truncatedContent.length());
             
-            String response = aiAssistantChatClient.prompt()
+            String response = chatClient.prompt()
                     .user(prompt)
                     .call()
                     .content();
@@ -497,7 +396,7 @@ public class AiServiceImpl implements AiService {
             log.error("❌ 概念提取失败，详细错误信息:", e);
             log.error("🔧 错误类型: {}", e.getClass().getSimpleName());
             log.error("📝 错误消息: {}", e.getMessage());
-            log.error("📋 输入内容长度: {}", content.length());
+            log.error("📋 输入内容长度: {}", truncatedContent.length());
             
             // 根据错误类型提供具体的解决建议
             if (e.getMessage() != null) {
@@ -520,11 +419,13 @@ public class AiServiceImpl implements AiService {
      * 生成文章摘要
      */
     private String generateSummary(String content) {
-        if (aiAssistantChatClient == null) {
-            log.warn("AI助手ChatClient未配置，跳过摘要生成");
-            return "AI服务未配置，无法生成摘要";
-        }
-        
+        log.info("开始生成摘要...");
+        String truncatedContent = truncateContent(content, 8000);
+
+        ChatClient chatClient = chatModelProvider.getChatModel(noteAnalysisModel)
+                .map(ChatClient::create)
+                .orElseThrow(() -> new IllegalStateException("笔记分析所需的AI模型 '" + noteAnalysisModel + "' 不可用。"));
+
         String prompt = """
             请为以下内容生成一个150-200字的精准摘要：
             
@@ -536,10 +437,10 @@ public class AiServiceImpl implements AiService {
             
             内容：
             %s
-            """.formatted(content);
+            """.formatted(truncatedContent);
             
         try {
-            return aiAssistantChatClient.prompt()
+            return chatClient.prompt()
                     .user(prompt)
                     .call()
                     .content();
@@ -553,11 +454,13 @@ public class AiServiceImpl implements AiService {
      * 提取关键点
      */
     private List<String> extractKeyPoints(String content) {
-        if (aiAssistantChatClient == null) {
-            log.warn("AI助手ChatClient未配置，跳过关键点提取");
-            return Collections.emptyList();
-        }
-        
+        log.info("开始提取关键观点...");
+        String truncatedContent = truncateContent(content, 8000);
+
+        ChatClient chatClient = chatModelProvider.getChatModel(noteAnalysisModel)
+                .map(ChatClient::create)
+                .orElseThrow(() -> new IllegalStateException("笔记分析所需的AI模型 '" + noteAnalysisModel + "' 不可用。"));
+
         String prompt = """
             从以下内容中提取3-6个核心要点：
             
@@ -571,10 +474,10 @@ public class AiServiceImpl implements AiService {
             
             内容：
             %s
-            """.formatted(content);
+            """.formatted(truncatedContent);
             
         try {
-            String response = aiAssistantChatClient.prompt()
+            String response = chatClient.prompt()
                     .user(prompt)
                     .call()
                     .content();
@@ -589,11 +492,13 @@ public class AiServiceImpl implements AiService {
      * 生成智能标签
      */
     private List<String> generateIntelligentTags(String content, String title) {
-        if (aiAssistantChatClient == null) {
-            log.warn("AI助手ChatClient未配置，跳过标签生成");
-            return Collections.emptyList();
-        }
-        
+        log.info("开始生成智能标签...");
+        String truncatedContent = truncateContent(content, 4000);
+
+        ChatClient chatClient = chatModelProvider.getChatModel(noteAnalysisModel)
+                .map(ChatClient::create)
+                .orElseThrow(() -> new IllegalStateException("笔记分析所需的AI模型 '" + noteAnalysisModel + "' 不可用。"));
+
         String prompt = """
             为以下文章生成4-8个智能标签：
             
@@ -610,10 +515,10 @@ public class AiServiceImpl implements AiService {
             
             内容：
             %s
-            """.formatted(title, content);
+            """.formatted(title, truncatedContent);
             
         try {
-            String response = aiAssistantChatClient.prompt()
+            String response = chatClient.prompt()
                     .user(prompt)
                     .call()
                     .content();
@@ -628,11 +533,13 @@ public class AiServiceImpl implements AiService {
      * 情感分析
      */
     private String analyzeSentiment(String content) {
-        if (aiAssistantChatClient == null) {
-            log.warn("AI助手ChatClient未配置，跳过情感分析");
-            return "NEUTRAL";
-        }
-        
+        log.info("开始进行情感分析...");
+        String truncatedContent = truncateContent(content, 2000);
+
+        ChatClient chatClient = chatModelProvider.getChatModel(noteAnalysisModel)
+                .map(ChatClient::create)
+                .orElseThrow(() -> new IllegalStateException("笔记分析所需的AI模型 '" + noteAnalysisModel + "' 不可用。"));
+
         String prompt = """
             对以下内容进行情感分析，返回以下之一：
             - POSITIVE: 积极正面
@@ -643,10 +550,10 @@ public class AiServiceImpl implements AiService {
             
             内容：
             %s
-            """.formatted(content);
+            """.formatted(truncatedContent);
             
         try {
-            String response = aiAssistantChatClient.prompt()
+            String response = chatClient.prompt()
                     .user(prompt)
                     .call()
                     .content().trim().toUpperCase();
@@ -664,11 +571,13 @@ public class AiServiceImpl implements AiService {
      * 生成分类
      */
     private String generateCategory(String content) {
-        if (aiAssistantChatClient == null) {
-            log.warn("AI助手ChatClient未配置，跳过分类生成");
-            return "其他";
-        }
-        
+        log.info("开始生成分类...");
+        String truncatedContent = truncateContent(content, 4000);
+
+        ChatClient chatClient = chatModelProvider.getChatModel(noteAnalysisModel)
+                .map(ChatClient::create)
+                .orElseThrow(() -> new IllegalStateException("笔记分析所需的AI模型 '" + noteAnalysisModel + "' 不可用。"));
+
         String prompt = """
             对以下内容进行主题分类，从以下类别中选择最合适的一个：
             - 科技
@@ -686,10 +595,10 @@ public class AiServiceImpl implements AiService {
             
             内容：
             %s
-            """.formatted(content);
+            """.formatted(truncatedContent);
             
         try {
-            return aiAssistantChatClient.prompt()
+            return chatClient.prompt()
                     .user(prompt)
                     .call()
                     .content().trim();
@@ -703,17 +612,21 @@ public class AiServiceImpl implements AiService {
      * 解析概念提取的JSON响应
      */
     private List<ArticleAnalysisResult.ConceptEntity> parseConceptResponse(String response) {
+        // 前置日志：记录完整的原始响应，用于调试
+        log.debug("📄 开始解析概念提取响应，原始AI响应: {}", response);
+        
         try {
             // 提取JSON部分
             String jsonPart = extractJsonFromResponse(response);
             JsonNode rootNode = objectMapper.readTree(jsonPart);
             JsonNode conceptsNode = rootNode.get("concepts");
-            
+
             if (conceptsNode == null || !conceptsNode.isArray()) {
-                log.warn("概念提取响应格式不正确");
+                // 丰富警告信息，包含原始响应内容
+                log.warn("🚨 概念提取响应格式不正确，响应内容: {}", response);
                 return Collections.emptyList();
             }
-            
+
             List<ArticleAnalysisResult.ConceptEntity> concepts = new ArrayList<>();
             for (JsonNode conceptNode : conceptsNode) {
                 ArticleAnalysisResult.ConceptEntity concept = ArticleAnalysisResult.ConceptEntity.builder()
@@ -728,8 +641,12 @@ public class AiServiceImpl implements AiService {
             }
             
             return concepts;
+        } catch (JsonProcessingException e) {
+            // 强化异常日志，包含导致解析失败的原始响应
+            log.error("❌ 解析概念响应失败，发生JSON处理异常。原始响应: {}", response, e);
+            return Collections.emptyList();
         } catch (Exception e) {
-            log.error("解析概念响应失败", e);
+            log.error("❌ 解析概念响应时发生意外错误。原始响应: {}", response, e);
             return Collections.emptyList();
         }
     }
@@ -871,14 +788,13 @@ public class AiServiceImpl implements AiService {
      * 为笔记提取概念实体
      */
     private List<ArticleAnalysisResult.ConceptEntity> extractConceptsForNote(String content) {
-        if (noteChatClient == null) {
-            log.warn("笔记分析ChatClient未配置，跳过概念提取");
-            return Collections.emptyList();
-        }
-        
-        // 截断内容，避免过长
-        String truncatedContent = truncateContent(content, 2000);
-        
+        log.info("开始为笔记提取概念...");
+        String truncatedContent = truncateContent(content, 16000);
+
+        ChatClient chatClient = chatModelProvider.getChatModel(noteAnalysisModel)
+                .map(ChatClient::create)
+                .orElseThrow(() -> new IllegalStateException("笔记分析所需的AI模型 '" + noteAnalysisModel + "' 不可用。"));
+
         // 构建提示词
         String prompt = String.format(
                 "请识别以下文本中的关键概念和实体，并按照JSON格式返回结果：\n\n%s\n\n" +
@@ -892,7 +808,7 @@ public class AiServiceImpl implements AiService {
         try {
             log.debug("🤖 开始调用笔记分析AI进行概念提取，内容长度: {}", content.length());
             
-            String response = noteChatClient.prompt()
+            String response = chatClient.prompt()
                     .user(prompt)
                     .call()
                     .content();
@@ -908,22 +824,20 @@ public class AiServiceImpl implements AiService {
      * 为笔记生成摘要
      */
     private String generateSummaryForNote(String content) {
-        if (noteChatClient == null) {
-            log.warn("笔记分析ChatClient未配置，跳过摘要生成");
-            return "AI服务未配置，无法生成摘要";
-        }
+        log.info("开始为笔记生成摘要...");
+        String truncatedContent = truncateContent(content, 8000);
+
+        ChatClient chatClient = chatModelProvider.getChatModel(noteAnalysisModel)
+                .map(ChatClient::create)
+                .orElseThrow(() -> new IllegalStateException("笔记分析所需的AI模型 '" + noteAnalysisModel + "' 不可用。"));
+
+        SystemMessage systemMessage = new SystemMessage(
+                "你是一个文本摘要专家。请根据以下笔记内容，生成一段简洁的摘要。");
         
-        // 截断内容，避免过长
-        String truncatedContent = truncateContent(content, 2500);
-        
-        // 构建提示词
-        String prompt = String.format(
-                "请对以下笔记内容生成一个简洁的摘要，100-150字左右：\n\n%s",
-                truncatedContent);
-        
+        Prompt prompt = new Prompt(Arrays.asList(systemMessage, new UserMessage(truncatedContent)));
+
         try {
-            return noteChatClient.prompt()
-                    .user(prompt)
+            return chatClient.prompt(prompt)
                     .call()
                     .content();
         } catch (Exception e) {
@@ -936,24 +850,20 @@ public class AiServiceImpl implements AiService {
      * 为笔记提取关键点
      */
     private List<String> extractKeyPointsForNote(String content) {
-        if (noteChatClient == null) {
-            log.warn("笔记分析ChatClient未配置，跳过关键点提取");
-            return Collections.emptyList();
-        }
+        log.info("开始为笔记提取关键观点...");
+        String truncatedContent = truncateContent(content, 8000);
+
+        ChatClient chatClient = chatModelProvider.getChatModel(noteAnalysisModel)
+                .map(ChatClient::create)
+                .orElseThrow(() -> new IllegalStateException("笔记分析所需的AI模型 '" + noteAnalysisModel + "' 不可用。"));
+
+        SystemMessage systemMessage = new SystemMessage(
+                "你是一个信息分析师。请从以下笔记中，提取出核心观点，并以无序列表的格式返回。");
         
-        // 截断内容，避免过长
-        String truncatedContent = truncateContent(content, 2000);
-        
-        // 构建提示词
-        String prompt = String.format(
-                "请从以下笔记内容中提取3-5个关键点，以JSON格式返回：\n\n%s\n\n" +
-                "返回格式为：\n" +
-                "[\"关键点1\", \"关键点2\", \"关键点3\"]",
-                truncatedContent);
-        
+        Prompt prompt = new Prompt(Arrays.asList(systemMessage, new UserMessage(truncatedContent)));
+
         try {
-            String response = noteChatClient.prompt()
-                    .user(prompt)
+            String response = chatClient.prompt(prompt)
                     .call()
                     .content();
             
@@ -968,25 +878,20 @@ public class AiServiceImpl implements AiService {
      * 为笔记生成智能标签
      */
     private List<String> generateIntelligentTagsForNote(String content, String title) {
-        if (noteChatClient == null) {
-            log.warn("笔记分析ChatClient未配置，跳过标签生成");
-            return Collections.emptyList();
-        }
+        log.info("开始为笔记生成智能标签...");
+        String truncatedContent = truncateContent(content, 4000);
+
+        ChatClient chatClient = chatModelProvider.getChatModel(noteAnalysisModel)
+                .map(ChatClient::create)
+                .orElseThrow(() -> new IllegalStateException("笔记分析所需的AI模型 '" + noteAnalysisModel + "' 不可用。"));
+
+        SystemMessage systemMessage = new SystemMessage(
+                "你是一个信息架构师。请为以下笔记生成3-5个最相关的标签（Tags），用于分类和检索。返回一个JSON字符串数组。");
         
-        // 截断内容，避免过长
-        String truncatedContent = truncateContent(content, 1000);
-        
-        // 构建提示词
-        String prompt = String.format(
-                "请为以下笔记内容生成3-5个智能标签，以JSON格式返回：\n\n" +
-                "标题：%s\n\n内容：%s\n\n" +
-                "返回格式为：\n" +
-                "[\"标签1\", \"标签2\", \"标签3\"]",
-                title, truncatedContent);
-        
+        Prompt prompt = new Prompt(Arrays.asList(systemMessage, new UserMessage(title), new UserMessage(truncatedContent)));
+
         try {
-            String response = noteChatClient.prompt()
-                    .user(prompt)
+            String response = chatClient.prompt(prompt)
                     .call()
                     .content();
             
@@ -1001,23 +906,20 @@ public class AiServiceImpl implements AiService {
      * 为笔记分析情感
      */
     private String analyzeSentimentForNote(String content) {
-        if (noteChatClient == null) {
-            log.warn("笔记分析ChatClient未配置，跳过情感分析");
-            return "NEUTRAL";
-        }
+        log.info("开始为笔记进行情感分析...");
+        String truncatedContent = truncateContent(content, 2000);
+
+        ChatClient chatClient = chatModelProvider.getChatModel(noteAnalysisModel)
+                .map(ChatClient::create)
+                .orElseThrow(() -> new IllegalStateException("笔记分析所需的AI模型 '" + noteAnalysisModel + "' 不可用。"));
+
+        SystemMessage systemMessage = new SystemMessage(
+                "你是一个情感分析引擎。请分析以下笔记的情感倾向，只返回'正面'、'负面'或'中性'中的一个词。");
         
-        // 截断内容，避免过长
-        String truncatedContent = truncateContent(content, 1000);
-        
-        // 构建提示词
-        String prompt = String.format(
-                "请分析以下笔记内容的情感倾向，只返回一个情感标签：\n\n%s\n\n" +
-                "可选的情感标签：POSITIVE（积极）, NEGATIVE（消极）, NEUTRAL（中性）",
-                truncatedContent);
-        
+        Prompt prompt = new Prompt(Arrays.asList(systemMessage, new UserMessage(truncatedContent)));
+
         try {
-            String response = noteChatClient.prompt()
-                    .user(prompt)
+            String response = chatClient.prompt(prompt)
                     .call()
                     .content();
             
@@ -1040,23 +942,20 @@ public class AiServiceImpl implements AiService {
      * 为笔记生成分类
      */
     private String generateCategoryForNote(String content) {
-        if (noteChatClient == null) {
-            log.warn("笔记分析ChatClient未配置，跳过分类生成");
-            return "其他";
-        }
+        log.info("开始为笔记生成分类...");
+        String truncatedContent = truncateContent(content, 4000);
+
+        ChatClient chatClient = chatModelProvider.getChatModel(noteAnalysisModel)
+                .map(ChatClient::create)
+                .orElseThrow(() -> new IllegalStateException("笔记分析所需的AI模型 '" + noteAnalysisModel + "' 不可用。"));
+
+        SystemMessage systemMessage = new SystemMessage(
+                "你是一个图书管理员。请根据以下笔记内容，为其分配一个最合适的分类。只返回分类名称。");
         
-        // 截断内容，避免过长
-        String truncatedContent = truncateContent(content, 1000);
-        
-        // 构建提示词
-        String prompt = String.format(
-                "请为以下笔记内容生成一个合适的分类标签：\n\n%s\n\n" +
-                "请直接返回一个单词或短语作为分类标签。",
-                truncatedContent);
-        
+        Prompt prompt = new Prompt(Arrays.asList(systemMessage, new UserMessage(truncatedContent)));
+
         try {
-            return noteChatClient.prompt()
-                    .user(prompt)
+            return chatClient.prompt(prompt)
                     .call()
                     .content();
         } catch (Exception e) {
@@ -1069,9 +968,122 @@ public class AiServiceImpl implements AiService {
      * 截断内容以符合令牌限制
      */
     private String truncateContent(String content, int maxChars) {
-        if (content.length() <= maxChars) {
+        if (content == null || content.length() <= maxChars) {
             return content;
         }
         return content.substring(0, maxChars) + "...（内容已截断）";
+    }
+
+    private ArticleAnalysisResult createFallbackArticleAnalysis(String articleId, String title, String content) {
+        log.warn("创建文章分析的回退结果: {}", articleId);
+        return ArticleAnalysisResult.builder()
+                .articleId(articleId)
+                .summary("AI服务当前不可用，无法生成摘要。")
+                .keyPoints(Collections.singletonList("AI服务当前不可用"))
+                .keywords(Collections.emptyList())
+                .intelligentTags(Collections.singletonList("无法分析"))
+                .sentiment("未知")
+                .category("未分类")
+                .build();
+    }
+
+    @Override
+    public ChatResponse chatWithAi(ChatRequest request) {
+        log.info("在 AiService 中处理非流式聊天, 会话ID: {}", request.getSessionId());
+
+        String activeModelName = aiConfigService.getActiveChatModelName();
+        ChatClient chatClient = chatModelProvider.getChatModel(activeModelName)
+                .map(ChatClient::create)
+                .orElseThrow(() -> new IllegalStateException("数据库配置的AI模型 '" + activeModelName + "' 不可用。"));
+
+        String response = chatClient.prompt()
+                .user(request.getMessage())
+                .call()
+                .content();
+
+        return ChatResponse.builder()
+                .id(UUID.randomUUID().toString())
+                .sessionId(request.getSessionId())
+                .content(response)
+                .role("assistant")
+                .timestamp(LocalDateTime.now())
+                .done(true)
+                .build();
+    }
+
+    @Override
+    public Flux<ChatResponse> streamChatWithAi(ChatRequest request) {
+        log.info("在 AiService 中处理流式聊天, 会话ID: {}, 消息: '{}'",
+                request.getSessionId(), request.getMessage().substring(0, Math.min(request.getMessage().length(), 50)));
+
+        // 1. 从数据库配置中获取当前激活的模型名称
+        String activeModelName = aiConfigService.getActiveChatModelName();
+
+        // 2. 获取模型并创建ChatClient
+        ChatClient chatClient = chatModelProvider.getChatModel(activeModelName)
+                .map(ChatClient::create)
+                .orElseThrow(() -> {
+                    log.error("无法创建ChatClient，因为数据库配置的激活模型 '{}' 不可用。", activeModelName);
+                    return new IllegalStateException("当前配置的AI模型不可用，请联系管理员。");
+                });
+
+        log.info("动态选择了模型 '{}' 用于本次会话 {}", activeModelName, request.getSessionId());
+
+        // 3. 历史消息处理 (如果需要)
+        List<Message> history = new ArrayList<>();
+
+        // 优化：为所有对话添加一个默认的系统指令，这是确保模型稳定响应的最佳实践
+        history.add(new SystemMessage("你是一个乐于助人的AI助手。"));
+
+        if (request.getHistory() != null && !request.getHistory().isEmpty()) {
+            request.getHistory().forEach(msg -> {
+                if (msg.containsKey("user")) {
+                    history.add(new UserMessage(msg.get("user")));
+                } else if (msg.containsKey("assistant")) {
+                    history.add(new AssistantMessage(msg.get("assistant")));
+                }
+            });
+        }
+        
+        // 4. 构建Prompt并返回流
+        // 优化：直接使用.stream().content()获取最纯净的内容流(Flux<String>)
+        // 这避免了处理复杂的ChatResponse对象和潜在的linter/dependency问题
+        return chatClient.prompt()
+                .messages(history)
+                .user(request.getMessage())
+                .stream()
+                .content()
+                // 增强诊断：添加更详细的流生命周期日志
+                .doOnSubscribe(subscription -> log.info("🚀 订阅上游内容流成功. Session ID: {}", request.getSessionId()))
+                .doOnNext(contentChunk -> log.info("📦 收到原始数据块(长度:{}). Session ID: {}", contentChunk.length(), request.getSessionId()))
+                .map(contentChunk -> {
+                    log.debug("🛠️ 映射数据块为DTO. Session ID: {}", request.getSessionId());
+                    return ChatResponse.builder()
+                            .id(UUID.randomUUID().toString()) // 直接生成新的ID
+                            .sessionId(request.getSessionId())
+                            .content(contentChunk) // contentChunk已经是纯净的String
+                            .role("assistant")
+                            .timestamp(LocalDateTime.now())
+                            .done(false)
+                            .build();
+                })
+                // 优化：在流末尾追加一个"完成"信号，这是前端正确处理流式响应的关键
+                .concatWith(Mono.just(ChatResponse.builder()
+                        .id(UUID.randomUUID().toString())
+                        .sessionId(request.getSessionId())
+                        .content("")
+                        .role("assistant")
+                        .timestamp(LocalDateTime.now())
+                        .done(true)
+                        .build()))
+                .doOnEach(signal -> {
+                    if (signal.isOnError()) {
+                        log.error("🚨 流式聊天发生致命错误! Session ID: {}", request.getSessionId(), signal.getThrowable());
+                    } else if (signal.isOnComplete()) {
+                        log.info("✅ 流式聊天正常完成. Session ID: {}", request.getSessionId());
+                    } else if (signal.isOnNext()) {
+                        log.trace("➡️ 已发送数据块到下游. Session ID: {}", request.getSessionId());
+                    }
+                });
     }
 }

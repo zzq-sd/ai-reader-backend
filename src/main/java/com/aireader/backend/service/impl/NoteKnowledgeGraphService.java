@@ -1,6 +1,6 @@
 package com.aireader.backend.service.impl;
 
-import com.aireader.backend.ai.ArticleAnalysisResult;
+import com.aireader.backend.dto.ai.ArticleAnalysisResult;
 import com.aireader.backend.model.constant.Neo4jRelationshipTypes;
 import com.aireader.backend.model.jpa.Note;
 import com.aireader.backend.model.mongo.NoteAnalysisResult;

@@ -1,7 +1,7 @@
 package com.aireader.backend.service;
 
-import com.aireader.backend.ai.ArticleAnalysisResult;
-import com.aireader.backend.ai.NoteAnalysisResult;
+import com.aireader.backend.dto.ai.ArticleAnalysisResult;
+import com.aireader.backend.dto.ai.NoteAnalysisResult;
 import com.aireader.backend.dto.GraphDataDTO;
 import com.aireader.backend.dto.ConceptStatisticsDTO;
 import com.aireader.backend.dto.ConceptSearchResultDTO;

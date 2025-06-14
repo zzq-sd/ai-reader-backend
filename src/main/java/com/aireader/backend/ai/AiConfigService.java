@@ -16,6 +16,12 @@ public interface AiConfigService {
     String getCurrentModel();
     
     /**
+     * 获取当前激活的聊天模型名称 (例如 "zhipuai", "deepseek")
+     * @return 模型名称
+     */
+    String getActiveChatModelName();
+    
+    /**
      * 获取API URL
      * 
      * @return API URL
