@@ -893,253 +893,144 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     // @Cacheable(value = "graph-data", key = "#nodeType + ':' + #search + ':' + #limit", 
     //            cacheManager = "knowledgeGraphCacheManager")  // 暂时禁用缓存进行测试
     public GraphDataDTO getGraphData(String nodeType, String search, int limit) {
-        log.info("【知识图谱】1. 开始获取图谱数据 | 参数: nodeType={}, search={}, limit={}", nodeType, search, limit);
-        
+        log.info("【知识图谱服务】执行 getGraphData: nodeType={}, search={}, limit={}", nodeType, search, limit);
+
+        String nodeFilter;
+        switch (nodeType.toUpperCase()) {
+            case "ARTICLE":
+                nodeFilter = "n:ArticleNode";
+                break;
+            case "CONCEPT":
+                nodeFilter = "n:ConceptNode";
+                break;
+            case "NOTE":
+                nodeFilter = "n:NoteNode";
+                break;
+            default:
+                nodeFilter = "n"; // ALL
+                break;
+        }
+
+        String searchFilter = "";
+        if (search != null && !search.trim().isEmpty()) {
+            searchFilter = "WHERE n.name CONTAINS $search OR n.title CONTAINS $search OR n.id CONTAINS $search";
+        }
+
+        String cypherQuery = 
+            "MATCH (" + nodeFilter + ") " +
+            searchFilter + " " +
+            "WITH n LIMIT $limit " +
+            "MATCH (n)-[r]-(m) " +
+            "WITH n, r, m " +
+            "RETURN collect(DISTINCT n) + collect(DISTINCT m) AS nodes, collect(DISTINCT r) AS relationships";
+
+        log.info("【知识图谱服务】执行现代化Cypher查询: {}", cypherQuery);
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("limit", limit);
+        if (!searchFilter.isEmpty()) {
+            params.put("search", search);
+        }
+
         try {
-            // 连接检查点 - 获取更详细的数据库状态信息
-            try {
-                log.info("【知识图谱】2. 检查Neo4j连接状态");
-                // 获取数据库中所有节点标签及数量
-                String testQuery = "MATCH (n) RETURN labels(n) AS labels, count(*) AS count";
-                Collection<Map<String, Object>> testResults = neo4jClient.query(testQuery)
-                    .fetch().all();
-                
-                if (testResults.isEmpty()) {
-                    log.warn("【知识图谱】2.1 Neo4j连接正常但数据库可能为空");
-                    log.warn("【知识图谱】⚠️ 正在返回测试数据而非真实数据 - 原因: 数据库为空");
-                    return createTestGraphData();
-                } else {
-                    log.info("【知识图谱】2.1 Neo4j连接正常，数据库节点标签统计：");
-                    for (Map<String, Object> row : testResults) {
-                        log.info("【知识图谱】    - 标签: {}, 数量: {}", 
-                                row.get("labels"), row.get("count"));
-                    }
-                    
-                    // 额外查询节点类型的详细信息，帮助诊断
-                    try {
-                        String nodeTypesQuery = "MATCH (n) RETURN DISTINCT labels(n) AS distinctLabels";
-                        Collection<Map<String, Object>> nodeTypes = neo4jClient.query(nodeTypesQuery)
-                            .fetch().all();
-                        log.info("【知识图谱】2.2 节点标签类型详情:");
-                        for (Map<String, Object> type : nodeTypes) {
-                            log.info("【知识图谱】    - 标签类型: {}", type.get("distinctLabels"));
-                        }
-                    } catch (Exception e) {
-                        log.warn("【知识图谱】2.3 获取节点标签类型详情失败: {}", e.getMessage());
-                    }
-                }
-            } catch (Exception e) {
-                log.error("【知识图谱】2.4 Neo4j连接检查失败: {}", e.getMessage(), e);
-                log.warn("【知识图谱】⚠️ 正在返回测试数据而非真实数据 - 原因: Neo4j连接检查失败");
-                return createTestGraphData();
+            Collection<Map<String, Object>> queryResults = neo4jClient.query(cypherQuery)
+                .bindAll(params)
+                .fetch()
+                .all();
+
+            if (queryResults.isEmpty() || queryResults.iterator().next().get("nodes") == null) {
+                log.warn("【知识图谱服务】查询未返回任何数据或返回空节点集。");
+                return new GraphDataDTO(Collections.emptyList(), Collections.emptyList());
             }
             
-            log.info("【知识图谱】3. 开始构建优化的查询语句");
+            // 结果现在应该只有一行，包含nodes和relationships
+            Map<String, Object> result = queryResults.iterator().next();
             
-            // 构建优化的Cypher查询 - 使用简化的数据结构避免Neo4j对象序列化问题
-            String cypher;
-            Map<String, Object> params = new HashMap<>();
-            params.put("limit", limit);
-            
-            // 根据nodeType构建包含关系的查询
-            if ("ALL".equalsIgnoreCase(nodeType)) {
-                // 使用两步查询：先获取节点，再获取关系 - 修复：确保返回节点的所有属性
-                cypher = "MATCH (n) " +
-                         "OPTIONAL MATCH (n)-[r]-(m) WHERE type(r) IN ['CONTAINS_CONCEPT', 'MENTIONS_CONCEPT', 'RELATED_TO'] AND NOT m:NoteConceptRelationship " +
-                         "RETURN n as node, labels(n) as nodeLabels, elementId(n) as nodeId, properties(n) as nodeProperties, " +
-                         "collect({rel: r, target: m, targetLabels: labels(m), targetId: elementId(m), targetProperties: properties(m)}) as relationships " +
-                         "LIMIT $limit";
-                
-                log.info("【知识图谱】3.1 使用包含关系的查询（已修复属性获取）");
-            } else {
-                // 为特定节点类型构建标签过滤条件
-                String labelCondition = "";
-                if ("CONCEPT".equalsIgnoreCase(nodeType)) {
-                    // 匹配所有概念节点，支持多种标签格式
-                    labelCondition = "WHERE ANY(label IN labels(n) WHERE label IN ['Concept', 'ConceptNode']) " +
-                                     "OR ('name' IN keys(n) AND NOT 'title' IN keys(n))";
-                } else if ("ARTICLE".equalsIgnoreCase(nodeType)) {
-                    labelCondition = "WHERE ANY(label IN labels(n) WHERE label IN ['Article', 'ArticleNode']) " +
-                                     "OR ('title' IN keys(n) AND 'author' IN keys(n))";
-                } else if ("NOTE".equalsIgnoreCase(nodeType)) {
-                    labelCondition = "WHERE ANY(label IN labels(n) WHERE label IN ['Note', 'NoteNode']) " +
-                                     "OR ('title' IN keys(n) AND NOT 'author' IN keys(n))";
-                }
-                
-                // 添加搜索条件
-                if (search != null && !search.trim().isEmpty()) {
-                    String searchPattern = "(?i).*" + search + ".*";
-                    params.put("searchPattern", searchPattern);
-                    
-                    if (labelCondition.isEmpty()) {
-                        labelCondition = "WHERE (n.name =~ $searchPattern OR n.title =~ $searchPattern)";
-                    } else {
-                        labelCondition += " AND (n.name =~ $searchPattern OR n.title =~ $searchPattern)";
-                    }
-                }
-                
-                // 构建包含关系的查询 - 修复：确保返回节点的所有属性
-                cypher = "MATCH (n) " + labelCondition + " " +
-                         "OPTIONAL MATCH (n)-[r]-(m) WHERE type(r) IN ['CONTAINS_CONCEPT', 'MENTIONS_CONCEPT', 'RELATED_TO'] AND NOT m:NoteConceptRelationship " +
-                         "RETURN n as node, labels(n) as nodeLabels, elementId(n) as nodeId, properties(n) as nodeProperties, " +
-                         "collect({rel: r, target: m, targetLabels: labels(m), targetId: elementId(m), targetProperties: properties(m)}) as relationships " +
-                         "LIMIT $limit";
-                         
-                log.info("【知识图谱】3.1 使用过滤条件和关系查询: {}", labelCondition);
-            }
-            
-            log.info("【知识图谱】3.2 执行Cypher查询: {}", cypher);
-            log.info("【知识图谱】3.3 查询参数: {}", params);
-            
-            // 执行查询
-            List<Map<String, Object>> queryResults;
-            try {
-                Collection<Map<String, Object>> resultCollection = neo4jClient.query(cypher)
-                    .bindAll(params)
-                    .fetch()
-                    .all();
-                    
-                queryResults = new ArrayList<>(resultCollection);
-                //log.info("【知识图谱】3.4 查询成功，返回结果数: {}", queryResults.size());
-                // queryResults = new ArrayList<>(resultCollection); // 已有此行
-                log.info("【知识图谱】3.4 查询成功，返回原始结果数: {}", queryResults.size()); // 修改日志，强调是"原始"
-                if (!queryResults.isEmpty()) {
-                     log.info("【知识图谱】3.4.1 原始查询结果第一条记录: {}", queryResults.get(0)); // 记录第一条的完整内容
-                }else {
-                     log.warn("【知识图谱】3.4.2 原始查询结果为空！");
-                }
-                // 如果结果为空，尝试直接查询所有节点作为备选方案
-                if (queryResults.isEmpty()) {
-                    log.warn("【知识图谱】3.5 查询结果为空，尝试最基础查询");
-                    String simpleQuery = "MATCH (n) " +
-                                     "OPTIONAL MATCH (n)-[r]-(m) WHERE type(r) IN ['CONTAINS_CONCEPT', 'MENTIONS_CONCEPT', 'RELATED_TO'] AND NOT m:NoteConceptRelationship " +
-                                     "RETURN n as node, labels(n) as nodeLabels, elementId(n) as nodeId, properties(n) as nodeProperties, " +
-                                     "collect({rel: r, target: m, targetLabels: labels(m), targetId: elementId(m), targetProperties: properties(m)}) as relationships " +
-                                     "LIMIT $limit";
-                    
-                    Collection<Map<String, Object>> backupCollection = neo4jClient.query(simpleQuery)
-                        .bindAll(Map.of("limit", limit))
-                        .fetch()
-                        .all();
-                    
-                    queryResults = new ArrayList<>(backupCollection);
-                    log.info("【知识图谱】3.6 备用查询返回原始结果数: {}", queryResults.size());
-                    if (!queryResults.isEmpty()) {
-                        log.info("【知识图谱】3.6.1 备用查询原始结果第一条记录: {}", queryResults.get(0));
-                    } else {
-                        log.warn("【知识图谱】3.6.2 备用查询原始结果也为空！");
-                    }
-                }
-                
-                // 记录查询结果的结构，帮助调试
-                if (!queryResults.isEmpty()) {
-                    Map<String, Object> firstResult = queryResults.get(0);
-                    log.info("【知识图谱】3.7 查询结果示例 - 第一条结果键集: {}", firstResult.keySet());
-                    
-                    // 尝试记录节点信息
-                    Object nodeObj = firstResult.get("n");
-                    if (nodeObj != null && nodeObj instanceof Map) {
-                        Map<String, Object> node = (Map<String, Object>) nodeObj;
-                        log.info("【知识图谱】3.8 节点属性示例: {}", node.keySet());
-                    }
-                }
-                
-            } catch (Exception e) {
-                log.error("【知识图谱】3.9 执行查询失败: {}", e.getMessage(), e);
-                log.error("【知识图谱】3.10 异常类型: {}", e.getClass().getName());
-                log.error("【知识图谱】3.11 查询语句: {}", cypher);
-                log.error("【知识图谱】3.12 查询参数: {}", params);
-                log.warn("【知识图谱】⚠️ 正在返回测试数据而非真实数据 - 原因: 查询执行失败");
-                return createTestGraphData();
-            }
-            
-            // 转换查询结果为图谱数据
-            try {
-                log.info("【知识图谱】4. 开始转换查询结果为GraphDataDTO");
-                GraphDataDTO graphData = convertQueryResultToGraphDataDTO(queryResults);
-                
-                // 检查结果是否为空，如果为空则使用备选处理逻辑
-                if (graphData.getNodes().isEmpty() && !queryResults.isEmpty()) {
-                    log.warn("【知识图谱】4.1 转换后节点为空但原始数据不为空，原始数据数量: {}", queryResults.size());
-                    
-                    // 记录原始数据结构用于诊断
-                    if (!queryResults.isEmpty()) {
-                        Map<String, Object> firstResult = queryResults.get(0);
-                        log.warn("【知识图谱】4.1.1 原始数据第一条记录键集: {}", firstResult.keySet());
-                        
-                        Object nodeObj = firstResult.get("node");
-                        if (nodeObj instanceof Map) {
-                            Map<String, Object> nodeMap = (Map<String, Object>) nodeObj;
-                            log.warn("【知识图谱】4.1.2 节点属性键集: {}", nodeMap.keySet());
-                        }
-                        
-                        Object relsObj = firstResult.get("relationships");
-                        if (relsObj instanceof List) {
-                            List<?> relsList = (List<?>) relsObj;
-                            log.warn("【知识图谱】4.1.3 关系集合大小: {}", relsList.size());
-                            if (!relsList.isEmpty() && relsList.get(0) instanceof Map) {
-                                Map<String, Object> firstRel = (Map<String, Object>) relsList.get(0);
-                                log.warn("【知识图谱】4.1.4 第一个关系键集: {}", firstRel.keySet());
-                            }
-                        }
-                    }
-                    
-                    log.warn("【知识图谱】4.1.5 尝试使用备选转换逻辑");
-                    graphData = processResultsWithFallback(queryResults);
-                }
-                
-                if (graphData.getNodes().isEmpty()) {
-                    log.warn("【知识图谱】4.2 所有转换方法后节点仍为空");
-                    log.warn("【知识图谱】⚠️ 正在返回测试数据而非真实数据 - 原因: 转换后节点为空");
-                    return createTestGraphData();
-                }
-                
-                log.info("【知识图谱】5. 成功构建图谱数据: nodes={}, edges={}", 
-                        graphData.getNodes().size(), graphData.getEdges().size());
-                return graphData;
-                
-            } catch (Exception e) {
-                log.error("【知识图谱】4.3 转换查询结果失败: {}", e.getMessage(), e);
-                log.error("【知识图谱】4.4 异常类型: {}", e.getClass().getName());
-                
-                // 打印第一个结果的结构，帮助诊断问题
-                if (!queryResults.isEmpty()) {
-                    Map<String, Object> firstResult = queryResults.get(0);
-                    log.error("【知识图谱】4.5 第一个结果结构:");
-                    for (Map.Entry<String, Object> entry : firstResult.entrySet()) {
-                        log.error("【知识图谱】    - {}: {} (类型: {})", 
-                                entry.getKey(), 
-                                entry.getValue(), 
-                                entry.getValue() != null ? entry.getValue().getClass().getName() : "null");
-                    }
-                } else {
-                    log.error("【知识图谱】4.6 查询结果为空，无法分析结构");
-                }
-                
-                log.warn("【知识图谱】⚠️ 正在返回测试数据而非真实数据 - 原因: 转换查询结果失败");
-                return createTestGraphData();
-            }
-            
+            return convertNeo4jResultToGraphDataDTO(result);
+
         } catch (Exception e) {
-            log.error("【知识图谱】获取知识图谱数据失败: {}", e.getMessage(), e);
-            log.error("【知识图谱】异常类型: {}", e.getClass().getName());
-            log.error("【知识图谱】查询参数: nodeType={}, search={}, limit={}", nodeType, search, limit);
-            
-            // 记录堆栈跟踪的前几行
-            StackTraceElement[] stackTrace = e.getStackTrace();
-            if (stackTrace.length > 0) {
-                log.error("【知识图谱】异常位置: {}:{}", 
-                    stackTrace[0].getClassName(), stackTrace[0].getLineNumber());
-            }
-            
-            log.warn("【知识图谱】⚠️ 正在返回测试数据而非真实数据 - 原因: 未处理的异常");
-            // 异常情况下返回测试数据，确保前端有数据可以显示
-            return createTestGraphData();
+            log.error("【知识图谱服务】执行Cypher查询时出错: {}", e.getMessage(), e);
+            throw new RuntimeException("执行知识图谱查询失败", e);
         }
     }
+
+    private GraphDataDTO convertNeo4jResultToGraphDataDTO(Map<String, Object> neo4jResult) {
+        log.info("【知识图谱服务】开始将Neo4j查询结果转换为GraphDataDTO...");
+
+        List<Node> nodeObjects = (List<Node>) neo4jResult.getOrDefault("nodes", Collections.emptyList());
+        List<org.neo4j.driver.types.Relationship> relationshipObjects = 
+            (List<org.neo4j.driver.types.Relationship>) neo4jResult.getOrDefault("relationships", Collections.emptyList());
+
+        log.info("【知识图谱服务】从查询结果中提取到 {} 个节点和 {} 个关系。", nodeObjects.size(), relationshipObjects.size());
+
+        Set<String> nodeIds = new HashSet<>();
+        List<GraphDataDTO.NodeDTO> finalNodes = new ArrayList<>();
+
+        for (Node node : nodeObjects) {
+            String nodeId = String.valueOf(node.id());
+            if (!nodeIds.contains(nodeId)) {
+                GraphDataDTO.NodeDTO nodeDTO = convertNeo4jNodeToDTO(node);
+                finalNodes.add(nodeDTO);
+                nodeIds.add(nodeId);
+            }
+        }
+        
+        List<GraphDataDTO.EdgeDTO> finalEdges = relationshipObjects.stream()
+            .map(this::convertNeo4jRelationshipToDTO)
+            .collect(Collectors.toList());
+
+        log.info("【知识图谱服务】DTO转换完成。最终节点数: {}, 边数: {}", finalNodes.size(), finalEdges.size());
+        
+        return new GraphDataDTO(finalNodes, finalEdges);
+    }
     
-    // 辅助方法：将查询结果转换为图谱数据，使用更健壮的错误处理
+    private GraphDataDTO.NodeDTO convertNeo4jNodeToDTO(Node node) {
+        String primaryLabel = node.labels().iterator().next(); // 假设每个节点至少有一个标签作为其类型
+        
+        String name;
+        if (node.containsKey("name")) {
+            name = node.get("name").asString();
+        } else if (node.containsKey("title")) {
+            name = node.get("title").asString();
+        } else {
+            name = "Unnamed";
+        }
+        
+        String id = String.valueOf(node.id());
+
+        return GraphDataDTO.NodeDTO.builder()
+            .id(id)
+            .label(name)
+            .type(primaryLabel)
+            .color(getNodeColor(primaryLabel))
+            .size(10.0) // 默认大小
+            .properties(node.asMap())
+            .build();
+    }
+
+    private GraphDataDTO.EdgeDTO convertNeo4jRelationshipToDTO(org.neo4j.driver.types.Relationship rel) {
+        double weight = 1.0;
+        if (rel.containsKey("weight")) {
+            weight = rel.get("weight").asDouble();
+        }
+
+        return GraphDataDTO.EdgeDTO.builder()
+            .id(String.valueOf(rel.id()))
+            .source(String.valueOf(rel.startNodeId()))
+            .target(String.valueOf(rel.endNodeId()))
+            .type(rel.type())
+            .label(rel.type())
+            .weight(weight)
+            .color("#999")
+            .properties(rel.asMap())
+            .build();
+    }
+
+    /**
+     * @deprecated 旧的数据转换逻辑，由 convertNeo4jResultToGraphDataDTO 替代
+     */
     private GraphDataDTO convertQueryResultToGraphDataDTO(List<Map<String, Object>> queryResults) {
+        // ... 此处保留旧方法的完整实现，但标记为废弃 ...
         log.info("【知识图谱】开始将查询结果转换为GraphDataDTO，结果数量: {}", queryResults.size());
         // log.info("【知识图谱】开始将查询结果转换为GraphDataDTO，结果数量: {}", queryResults.size()); // 已有此行
         if (queryResults.isEmpty()) {

@@ -147,10 +147,9 @@ public class ArticleFetchServiceImpl implements ArticleFetchService {
                     if (rssFullContent != null && !rssFullContent.trim().isEmpty()) {
                         // 直接保存RSS中的完整内容
                         saveRssContentDirectly(savedArticle, rssFullContent);
-                    } else {
-                        // 抓取文章全文内容
-                        fetchAndSaveArticleContent(savedArticle);
                     }
+                    // 如果RSS中没有内容，我们就不在这里抓取了。
+                    // 会在用户第一次请求文章时按需抓取。
                     
                     // 将文章加入处理队列
                     queueArticleForProcessing(savedArticle.getId());
@@ -283,18 +282,46 @@ public class ArticleFetchServiceImpl implements ArticleFetchService {
     }
     
     /**
-     * 获取文章全文内容
-     * 
+     * 获取文章的完整内容。
+     * 如果内容不在数据库中，则会尝试从原始URL实时抓取。
+     *
      * @param articleId 文章ID
-     * @return 文章全文内容
+     * @return 文章的HTML内容，如果无法获取则为null
      */
     @Override
     public String getArticleFullContent(String articleId) {
-        Optional<ArticleContent> optionalContent = articleContentRepository
-                .findByMysqlMetadataId(articleId);
-        
-        return optionalContent.map(content -> content.getFullHtmlContent())
-                .orElse(null);
+        // 1. 尝试从MongoDB中获取内容
+        Optional<ArticleContent> optionalContent = articleContentRepository.findByMysqlMetadataId(articleId);
+        if (optionalContent.isPresent() && StringUtils.hasText(optionalContent.get().getFullHtmlContent())) {
+            logger.info("从数据库中成功获取到文章 {} 的内容。", articleId);
+            return optionalContent.get().getFullHtmlContent();
+        }
+
+        // 2. 如果内容不存在，从元数据中获取URL并实时抓取
+        logger.warn("数据库中未找到文章 {} 的内容，尝试从原始URL实时抓取。", articleId);
+        Optional<ArticleMetadata> optionalMetadata = articleMetadataRepository.findById(articleId);
+        if (!optionalMetadata.isPresent()) {
+            logger.error("无法找到文章 {} 的元数据，无法进行抓取。", articleId);
+            return null;
+        }
+
+        ArticleMetadata metadata = optionalMetadata.get();
+        try {
+            // 执行同步抓取和保存
+            String fetchedContent = fetchAndSaveContentOnDemand(metadata);
+            if (StringUtils.hasText(fetchedContent)) {
+                logger.info("成功从URL {} 实时抓取并保存了文章 {} 的内容。", metadata.getLinkToOriginal(), articleId);
+                // 触发一次后台处理
+                queueArticleForProcessing(articleId);
+                return fetchedContent;
+            } else {
+                logger.error("实时抓取文章 {} 内容失败。", articleId);
+                return null;
+            }
+        } catch (Exception e) {
+            logger.error("实时抓取文章 {} 时发生异常", articleId, e);
+            return null;
+        }
     }
     
     /**
@@ -315,115 +342,71 @@ public class ArticleFetchServiceImpl implements ArticleFetchService {
      */
     @Override
     public void queueArticleForProcessing(String articleId) {
+        logger.info("将文章 {} 加入处理队列", articleId);
         try {
             rabbitTemplate.convertAndSend(exchange, articleProcessingRoutingKey, articleId);
-            logger.info("文章已加入处理队列: {}", articleId);
         } catch (Exception e) {
-            logger.error("将文章加入处理队列失败: {}", articleId, e);
+            logger.error("将文章 {} 加入处理队列失败", articleId, e);
         }
     }
     
     /**
-     * 抓取并保存文章全文内容
-     * 
+     * 按需抓取内容：同步执行HTML抓取、解析和保存。
+     *
      * @param article 文章元数据
+     * @return 抓取到的HTML内容，失败则返回null
      */
-    private void fetchAndSaveArticleContent(ArticleMetadata article) {
+    private String fetchAndSaveContentOnDemand(ArticleMetadata article) {
         try {
-            logger.info("开始抓取文章内容: {} - {}", article.getId(), article.getLinkToOriginal());
-            
-            // 检查是否已存在内容
-            if (articleContentRepository.existsByMysqlMetadataId(article.getId())) {
-                logger.info("文章内容已存在，跳过抓取: {}", article.getId());
-                return;
-            }
-            
+            logger.info("开始按需抓取文章全文: {}", article.getLinkToOriginal());
             String htmlContent = fetchHtmlContent(article.getLinkToOriginal());
-            if (htmlContent != null && !htmlContent.trim().isEmpty()) {
-                // 使用智能正文提取算法
+
+            if (htmlContent != null && !htmlContent.isEmpty()) {
                 Document doc = Jsoup.parse(htmlContent);
-                
-                // 提取正文内容
-                String extractedContent = extractMainContent(doc);
-                String plainTextContent = Jsoup.parse(extractedContent).text();
-                
-                // 提取图片URLs（只从正文区域提取）
-                List<String> imageUrls = new ArrayList<>();
-                Document contentDoc = Jsoup.parse(extractedContent);
-                Elements imgElements = contentDoc.select("img[src]");
-                for (Element img : imgElements) {
-                    String src = img.attr("abs:src");
-                    if (StringUtils.hasText(src) && (src.startsWith("http://") || src.startsWith("https://"))) {
-                        imageUrls.add(src);
-                    }
+                doc.setBaseUri(article.getLinkToOriginal());
+
+                String mainContent = extractMainContent(doc);
+
+                if (!StringUtils.hasText(mainContent)) {
+                    logger.warn("无法从 {} 提取主要内容。", article.getLinkToOriginal());
+                    return null;
                 }
                 
-                // 提取第一张图片作为封面图
-                if (!imageUrls.isEmpty()) {
-                    article.setCoverImageUrl(imageUrls.get(0));
-                    articleMetadataRepository.save(article);
-                    logger.info("为文章 {} 设置了封面图: {}", article.getId(), imageUrls.get(0));
-                } else {
-                    // 如果正文区域没有图片，尝试从整个页面提取
-                    String coverImageUrl = extractFirstImage(doc);
-                    if (coverImageUrl != null) {
-                        article.setCoverImageUrl(coverImageUrl);
-                        articleMetadataRepository.save(article);
-                        logger.info("为文章 {} 设置了整页面的封面图: {}", article.getId(), coverImageUrl);
-                    }
+                String plainText = Jsoup.clean(mainContent, Safelist.none());
+                String coverImageUrl = extractFirstImage(doc);
+                int wordCount = plainText.split("\\s+").length;
+                int readingTime = (int) Math.ceil(wordCount / 200.0);
+
+                // 更新元数据
+                article.setReadingTimeMinutes(readingTime);
+                article.setCoverImageUrl(coverImageUrl);
+                articleMetadataRepository.save(article);
+                
+                // 查找或创建 ArticleContent
+                ArticleContent content = articleContentRepository.findByMysqlMetadataId(article.getId())
+                                           .orElse(new ArticleContent());
+
+                // 确保 processingInfo 不为 null
+                if (content.getProcessingInfo() == null) {
+                    content.setProcessingInfo(new ArticleContent.ArticleProcessingInfo());
                 }
-                
-                // 计算内容哈希
-                String contentHash = DigestUtils.md5DigestAsHex(plainTextContent.getBytes());
-                
-                // 创建ArticleContent对象
-                ArticleContent articleContent = ArticleContent.builder()
-                        .mysqlMetadataId(article.getId())
-                        .originalUrl(article.getLinkToOriginal())
-                        .titleFromContent(article.getTitle())
-                        .fullHtmlContent(extractedContent) // 存储提取的正文HTML
-                        .plainTextContent(plainTextContent)
-                        .extractedImagesUrls(imageUrls)
-                        .contentHash(contentHash)
-                        .author(article.getAuthor())
-                        .publicationDate(article.getPublicationDate())
-                        .fetchedAt(LocalDateTime.now())
-                        .build();
-                
-                // 保存到MongoDB
-                ArticleContent savedContent = articleContentRepository.save(articleContent);
-                logger.info("成功保存文章内容到MongoDB: {} -> {}, 正文长度: {}", 
-                    article.getId(), savedContent.getId(), plainTextContent.length());
-                
-                // 更新MySQL中的mongodb_content_id字段（如果存在该字段）
-                try {
-                    article.setMongodbContentId(savedContent.getId());
-                    articleMetadataRepository.save(article);
-                    logger.info("已更新MySQL中的mongodb_content_id: {}", article.getId());
-                } catch (Exception e) {
-                    logger.warn("更新MySQL中的mongodb_content_id失败，但不影响主流程: {}", e.getMessage());
-                }
-                
+
+                content.setMysqlMetadataId(article.getId());
+                content.setFullHtmlContent(mainContent);
+                content.setPlainTextContent(plainText);
+                content.getProcessingInfo().setWordCount(wordCount);
+                content.setFetchedAt(LocalDateTime.now());
+                articleContentRepository.save(content);
+
+                logger.info("成功抓取并保存文章全文: {}", article.getLinkToOriginal());
+                return mainContent;
             } else {
-                logger.warn("未能获取到有效的HTML内容: {} - {}", article.getId(), article.getLinkToOriginal());
-                
-                // 即使没有获取到内容，也创建一个空的记录，避免重复尝试
-                ArticleContent emptyContent = ArticleContent.builder()
-                        .mysqlMetadataId(article.getId())
-                        .originalUrl(article.getLinkToOriginal())
-                        .titleFromContent(article.getTitle())
-                        .fullHtmlContent("")
-                        .plainTextContent("")
-                        .author(article.getAuthor())
-                        .publicationDate(article.getPublicationDate())
-                        .fetchedAt(LocalDateTime.now())
-                        .build();
-                
-                articleContentRepository.save(emptyContent);
-                logger.info("已保存空内容记录，避免重复抓取: {}", article.getId());
+                logger.warn("无法获取文章 {} 的HTML内容", article.getLinkToOriginal());
+                return null;
             }
         } catch (Exception e) {
-            logger.error("抓取或保存文章 {} 的内容时出错: {}", article.getId(), e.getMessage(), e);
+            logger.error("按需抓取文章全文时发生异常: {}", article.getLinkToOriginal(), e);
+            return null; // 确保异常时返回null
         }
     }
     
@@ -461,6 +444,7 @@ public class ArticleFetchServiceImpl implements ArticleFetchService {
         
         // 常见的正文内容选择器（按优先级排序）
         String[] contentSelectors = {
+            "div.detail-content div.content", // foresightnews.pro
             "article",
             ".post-content", ".entry-content", ".article-content", ".content",
             ".post-body", ".entry-body", ".article-body", ".body",
@@ -524,6 +508,32 @@ public class ArticleFetchServiceImpl implements ArticleFetchService {
         content.select(".next-prev, .pagination").remove();
         content.select(".comments, .comment-section").remove();
         content.select(".related-posts, .recommended").remove();
+        
+        // --- 新增：将所有相对URL转换为绝对URL ---
+        // 1a. 处理延迟加载的图片 (data-src)
+        Elements lazyImages = content.select("img[data-src]");
+        for (Element img : lazyImages) {
+            img.attr("src", img.attr("abs:data-src"));
+        }
+
+        // 1b. 处理图片链接
+        Elements images = content.select("img[src]");
+        for (Element img : images) {
+            String absoluteUrl = img.attr("abs:src");
+            if (StringUtils.hasText(absoluteUrl)) {
+                img.attr("src", absoluteUrl);
+            }
+        }
+        
+        // 2. 处理超链接
+        Elements links = content.select("a[href]");
+        for (Element link : links) {
+            String absoluteUrl = link.attr("abs:href");
+            if (StringUtils.hasText(absoluteUrl)) {
+                link.attr("href", absoluteUrl);
+            }
+        }
+        // --- URL转换结束 ---
         
         // 清理空白段落和无意义的div
         content.select("p:empty, div:empty").remove();
@@ -769,7 +779,6 @@ public class ArticleFetchServiceImpl implements ArticleFetchService {
             // 内容质量检查
             if (rssContent == null || rssContent.trim().isEmpty()) {
                 logger.warn("RSS内容为空，回退到URL抓取: {}", article.getId());
-                fetchAndSaveArticleContent(article);
                 return;
             }
             
@@ -830,7 +839,6 @@ public class ArticleFetchServiceImpl implements ArticleFetchService {
                     rssContent = extractedContent;
                 } else {
                     logger.warn("无法从XML中提取文章内容，回退到URL抓取");
-                    fetchAndSaveArticleContent(article);
                     return;
                 }
             }
@@ -839,59 +847,30 @@ public class ArticleFetchServiceImpl implements ArticleFetchService {
             String textContent = Jsoup.parse(rssContent).text();
             if (textContent.length() < 50) {
                 logger.warn("RSS内容过短（{}字符），可能只是摘要，回退到URL抓取: {}", textContent.length(), article.getId());
-                fetchAndSaveArticleContent(article);
                 return;
             }
+
+            // 使用Jsoup解析内容，并提供baseUri来处理相对路径
+            Document contentDoc = Jsoup.parse(rssContent, article.getLinkToOriginal());
             
-            // 清理和处理RSS内容
-            String cleanedContent = cleanRssContent(rssContent);
-            Document contentDoc = Jsoup.parse(cleanedContent);
-            String plainTextContent = contentDoc.text();
+            // 使用统一的内容清理和URL规范化方法
+            cleanAndNormalizeContent(contentDoc.body());
+            
+            String cleanedContent = contentDoc.body().html();
+            String plainTextContent = contentDoc.body().text();
             
             // 再次验证清理后的内容
             if (plainTextContent.trim().isEmpty()) {
                 logger.warn("清理后的内容为空，回退到URL抓取: {}", article.getId());
-                fetchAndSaveArticleContent(article);
                 return;
             }
             
-            // 内容质量评估 - 检查基本内容质量
-            boolean hasStructure = contentDoc.select("p, div, h1, h2, li, table").size() > 0;
-            boolean hasMedia = contentDoc.select("img, video, iframe").size() > 0;
-            
-            // 如果文本太短且没有结构和媒体，可能不是有价值的内容
-            if (plainTextContent.length() < 100 && !hasStructure && !hasMedia) {
-                logger.warn("内容质量评估不通过，回退到URL抓取: {}", article.getId());
-                fetchAndSaveArticleContent(article);
-                return;
-            }
-            
-            // 提取图片URLs
-            List<String> imageUrls = new ArrayList<>();
-            Elements imgElements = contentDoc.select("img[src]");
-            for (Element img : imgElements) {
-                String src = img.attr("src");
-                // 处理相对路径图片
-                if (StringUtils.hasText(src)) {
-                    if (src.startsWith("http://") || src.startsWith("https://")) {
-                        imageUrls.add(src);
-                    } else if (src.startsWith("/") || src.startsWith("./")) {
-                        // 尝试构建绝对路径（基于文章原始URL）
-                        try {
-                            String baseUrl = article.getLinkToOriginal();
-                            if (StringUtils.hasText(baseUrl)) {
-                                java.net.URL url = new java.net.URL(baseUrl);
-                                String absoluteUrl = url.getProtocol() + "://" + url.getHost() + 
-                                    (src.startsWith("/") ? src : "/" + src);
-                                imageUrls.add(absoluteUrl);
-                            }
-                        } catch (Exception e) {
-                            logger.debug("无法构建图片绝对路径: {}", src);
-                        }
-                    }
-                }
-            }
-            
+            // 提取图片URLs (此时所有URL都应为绝对路径)
+            List<String> imageUrls = contentDoc.select("img[src]").stream()
+                    .map(element -> element.attr("src"))
+                    .filter(src -> StringUtils.hasText(src) && !src.startsWith("data:")) // 过滤掉data URI
+                    .collect(Collectors.toList());
+
             // 设置封面图URL
             if (!imageUrls.isEmpty()) {
                 article.setCoverImageUrl(imageUrls.get(0));
@@ -932,146 +911,6 @@ public class ArticleFetchServiceImpl implements ArticleFetchService {
             
         } catch (Exception e) {
             logger.error("直接保存RSS内容时出错: {} - {}", article.getId(), e.getMessage(), e);
-            // 如果直接保存失败，回退到原有的抓取逻辑
-            logger.info("回退到原有的URL抓取逻辑: {}", article.getId());
-            fetchAndSaveArticleContent(article);
-        }
-    }
-    
-    /**
-     * 清理RSS内容
-     * 增强版本，处理各种格式的RSS内容
-     * 
-     * @param rssContent 原始RSS内容
-     * @return 清理后的内容
-     */
-    private String cleanRssContent(String rssContent) {
-        if (rssContent == null || rssContent.trim().isEmpty()) {
-            return "";
-        }
-        
-        try {
-            logger.debug("开始清理RSS内容，长度: {}", rssContent.length());
-            
-            // 1. 检查是否为XML结构（标准RSS/Atom响应）
-            if ((rssContent.startsWith("<?xml") || rssContent.contains("<rss")) && 
-                (rssContent.contains("<item>") || rssContent.contains("<entry>"))) {
-                logger.debug("检测到XML结构，尝试提取内容");
-                try {
-                    Document xmlDoc = Jsoup.parse(rssContent, "", org.jsoup.parser.Parser.xmlParser());
-                    // 提取所有item/entry中的内容
-                    Elements items = xmlDoc.select("item");
-                    if (!items.isEmpty()) {
-                        StringBuilder extractedContent = new StringBuilder();
-                        for (Element item : items) {
-                            // 按优先级获取内容
-                            String content = null;
-                            Element contentElement = item.selectFirst("encoded, content\\:encoded");
-                            if (contentElement != null) {
-                                content = contentElement.text();
-                            } else if (item.selectFirst("description") != null) {
-                                content = item.selectFirst("description").text();
-                            }
-                            
-                            if (content != null && !content.trim().isEmpty()) {
-                                extractedContent.append(content).append("\n");
-                            }
-                        }
-                        
-                        if (extractedContent.length() > 0) {
-                            rssContent = extractedContent.toString();
-                            logger.debug("成功从XML提取内容，长度: {}", rssContent.length());
-                        }
-                    }
-                } catch (Exception e) {
-                    logger.warn("XML解析失败: {}", e.getMessage());
-                }
-            }
-            
-            // 2. 使用Jsoup解析和清理HTML
-            Document doc;
-            if (rssContent.trim().startsWith("<") && rssContent.contains("</")) {
-                // 内容看起来是HTML
-                doc = Jsoup.parse(rssContent);
-            } else {
-                // 可能是纯文本，进行包装
-                doc = Jsoup.parse("<div>" + rssContent + "</div>");
-            }
-            
-            // 3. 移除一些可能的干扰元素
-            doc.select("script, style, noscript").remove();
-            doc.select(".share, .sharing, .social-share").remove();
-            doc.select(".advertisement, .ads, .ad").remove();
-            doc.select(".comment-section, .comments").remove();
-            doc.select("footer, .footer, .site-footer").remove();
-            
-            // 4. 清理空白段落和无用标签
-            doc.select("p:empty, div:empty").remove();
-            
-            // 5. 确保图片链接是绝对路径
-            Elements images = doc.select("img[src]");
-            for (Element img : images) {
-                String src = img.attr("src");
-                if (src.startsWith("data:")) {
-                    // 数据URI，保留
-                    continue;
-                } else if (!src.startsWith("http")) {
-                    // 相对路径，标记但不修改
-                    logger.debug("发现相对路径图片: {}", src);
-                }
-            }
-            
-            // 6. 处理特殊字符和HTML实体
-            doc.outputSettings().escapeMode(org.jsoup.nodes.Entities.EscapeMode.xhtml);
-            doc.outputSettings().charset("UTF-8");
-            
-            // 7. 基本格式规范化
-            // 修复可能的H标签嵌套
-            Elements headings = doc.select("h1, h2, h3, h4, h5, h6");
-            for (Element heading : headings) {
-                if (heading.parent() != null && heading.parent().tagName().startsWith("h")) {
-                    // 修复嵌套标题
-                    heading.unwrap();
-                }
-            }
-            
-            // 8. 处理特定的内容格式问题
-            // 合并连续的空行
-            Elements paragraphs = doc.select("p, div, span");
-            for (Element p : paragraphs) {
-                if (p.text().trim().isEmpty() && p.selectFirst("img") == null) {
-                    p.remove();
-                }
-            }
-            
-            // 确保body存在
-            Element body = doc.body();
-            if (body == null) {
-                logger.warn("HTML内容缺少body，创建一个");
-                doc = Jsoup.parse("<html><body>" + rssContent + "</body></html>");
-                body = doc.body();
-            }
-            
-            // 内容检查 - 如果内容看起来过于简单（只有少量文本），回退到原始内容
-            if (body.text().length() < 50 && body.select("img").isEmpty()) {
-                logger.warn("清理后的内容过于简单，回退到原始格式，长度: {}", rssContent.length());
-                return rssContent;
-            }
-            
-            // 9. 选择返回方式：
-            // - 如果原始内容就已经很简洁，直接返回原始内容
-            // - 否则返回清理后的HTML
-            if (rssContent.length() < 1000 && !rssContent.contains("<script") && !rssContent.contains("<style")) {
-                return rssContent;
-            } else {
-                String cleanedHtml = body.html();
-                logger.debug("内容清理完成，原始长度: {}, 清理后长度: {}", rssContent.length(), cleanedHtml.length());
-                return cleanedHtml;
-            }
-            
-        } catch (Exception e) {
-            logger.warn("清理RSS内容时出错，返回原始内容: {}", e.getMessage());
-            return rssContent;
         }
     }
     
@@ -1247,7 +1086,7 @@ public class ArticleFetchServiceImpl implements ArticleFetchService {
                 try {
                     logger.info("开始重新抓取文章内容: {}", articleId);
                     // 同步抓取文章内容（在这种情况下，我们更希望同步等待结果）
-                    fetchAndSaveArticleContent(metadata);
+                    fetchAndSaveContentOnDemand(metadata);
                     
                     // 重新获取内容
                     optionalContent = articleContentRepository.findByMysqlMetadataId(articleId);

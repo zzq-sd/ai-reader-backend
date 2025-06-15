@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 import java.nio.charset.StandardCharsets;
@@ -65,85 +66,26 @@ public class ArticleController extends BaseController {
     @GetMapping("/{articleId}/content")
     @Operation(summary = "获取文章内容", description = "获取文章的全文内容")
     public ResponseEntity<ApiResponse> getArticleContent(
-            @Parameter(description = "文章ID") @PathVariable String articleId,
-            HttpServletResponse response) {
+            @Parameter(description = "文章ID") @PathVariable String articleId) {
         
         log.info("获取文章内容请求: articleId={}", articleId);
         
         try {
-            // 设置响应头为UTF-8编码
-            response.setCharacterEncoding("UTF-8");
-            response.setContentType("application/json; charset=UTF-8");
+            // 新的简化逻辑：直接调用具备按需抓取能力的服务方法
+            String content = articleFetchService.getArticleFullContent(articleId);
             
-            // 首先获取文章详情（包含内容）
-            ArticleDTO article = articleFetchService.getArticleById(articleId);
-            
-            if (article == null) {
-                log.warn("文章不存在: {}", articleId);
-                return ResponseEntity.ok(ApiResponse.error("文章不存在"));
-            }
-            
-            // 检查是否有HTML内容
-            String content = article.getHtmlContent();
-            if (content == null || content.trim().isEmpty()) {
-                // 如果没有HTML内容，尝试获取纯文本内容
-                content = article.getPlainTextContent();
-                
-                // 如果还是没有内容，尝试直接从数据库获取完整内容
-                if (content == null || content.trim().isEmpty()) {
-                    log.warn("文章内容为空，尝试直接获取完整内容: {}", articleId);
-                    content = articleFetchService.getArticleFullContent(articleId);
-                    
-                    // 如果依然为空，尝试触发重新解析
-                    if (content == null || content.trim().isEmpty()) {
-                        log.warn("直接获取内容也为空，尝试重新解析: {}", articleId);
-                        boolean parseSuccess = articleFetchService.parseArticleContent(articleId);
-                        
-                        if (parseSuccess) {
-                            log.info("重新解析成功，再次获取内容");
-                            content = articleFetchService.getArticleFullContent(articleId);
-                        }
-                        
-                        // 如果仍然为空，返回错误
-                        if (content == null || content.trim().isEmpty()) {
-                            log.error("无法获取文章内容，所有尝试均失败: {}", articleId);
-                            return ResponseEntity.ok(ApiResponse.error("文章内容为空"));
-                        }
-                    }
-                }
-            }
-            
-            // 确保字符串是正确的UTF-8编码
-            if (content != null) {
-                try {
-                    // 将字符串转换为UTF-8字节数组，然后重新创建字符串
-                    byte[] contentBytes = content.getBytes(StandardCharsets.UTF_8);
-                    content = new String(contentBytes, StandardCharsets.UTF_8);
-                } catch (Exception e) {
-                    log.warn("字符编码处理异常: {}", e.getMessage());
-                }
-            }
-            
-            // 检查内容是否为XML格式，如果是则尝试提取实际内容
-            if (content != null && (content.startsWith("<?xml") || content.contains("<rss"))) {
-                log.info("检测到可能的XML格式内容，尝试提取实际内容");
-                try {
-                    // 使用文章服务中的处理方法提取内容
-                    boolean parseSuccess = articleFetchService.parseArticleContent(articleId);
-                    if (parseSuccess) {
-                        // 重新获取处理后的内容
-                        content = articleFetchService.getArticleFullContent(articleId);
-                        log.info("从XML中提取内容成功，新内容长度: {}", content != null ? content.length() : 0);
-                    }
-                } catch (Exception e) {
-                    log.warn("尝试提取XML内容时出错: {}", e.getMessage());
-                }
-            }
-            
-            // 最终内容检查
-            if (content == null || content.trim().isEmpty()) {
-                log.error("所有尝试后文章内容仍为空: {}", articleId);
+            // 检查内容是否成功获取
+            if (!StringUtils.hasText(content)) {
+                log.error("无法获取文章内容，所有尝试均失败: {}", articleId);
                 return ResponseEntity.ok(ApiResponse.error("文章内容为空"));
+            }
+            
+            // 获取文章元数据用于响应
+            ArticleDTO article = articleFetchService.getArticleById(articleId);
+            if (article == null) {
+                // 这本不应该发生，因为能获取内容就说明元数据存在
+                log.warn("文章 {} 内容存在但元数据不存在", articleId);
+                return ResponseEntity.ok(ApiResponse.error("文章数据不一致"));
             }
             
             // 构建响应数据
@@ -158,19 +100,12 @@ public class ArticleController extends BaseController {
             responseData.put("readingTimeMinutes", article.getReadingTimeMinutes());
             
             log.info("成功获取文章内容: articleId={}, contentLength={}", 
-                    articleId, content != null ? content.length() : 0);
+                    articleId, content.length());
             
-            // 创建ResponseEntity时设置正确的Content-Type
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.set("Content-Type", "application/json; charset=UTF-8");
-            
-            return ResponseEntity.ok()
-                    .headers(headers)
-                    .body(ApiResponse.success(responseData));
+            return ResponseEntity.ok(ApiResponse.success(responseData));
             
         } catch (Exception e) {
-            log.error("获取文章内容失败: articleId={}, error={}", articleId, e.getMessage(), e);
+            log.error("获取文章内容时发生未知异常: articleId={}, error={}", articleId, e.getMessage(), e);
             return ResponseEntity.ok(ApiResponse.error("获取文章内容失败: " + e.getMessage()));
         }
     }

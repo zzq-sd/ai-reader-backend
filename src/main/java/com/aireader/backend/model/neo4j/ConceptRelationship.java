@@ -1,9 +1,6 @@
 package com.aireader.backend.model.neo4j;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.springframework.data.neo4j.core.schema.GeneratedValue;
 import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Property;
@@ -15,7 +12,10 @@ import org.springframework.data.neo4j.core.schema.TargetNode;
  * 代表文章 "ABOUT" 某个概念，或者概念被文章 "MENTIONED_IN"。
  */
 @RelationshipProperties
-@Data
+@Getter
+@Setter
+@ToString(exclude = {"concept"})
+@EqualsAndHashCode(exclude = {"concept"})
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

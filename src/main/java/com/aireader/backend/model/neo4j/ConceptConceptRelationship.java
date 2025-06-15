@@ -1,9 +1,6 @@
 package com.aireader.backend.model.neo4j;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.springframework.data.neo4j.core.schema.GeneratedValue;
 import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.RelationshipProperties;
@@ -14,7 +11,10 @@ import org.springframework.data.neo4j.core.schema.TargetNode;
  * 表示概念与概念之间的"RELATED_TO"关系，即概念A与概念B相关
  */
 @RelationshipProperties
-@Data
+@Getter
+@Setter
+@ToString(exclude = {"targetConcept"})
+@EqualsAndHashCode(exclude = {"targetConcept"})
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor

@@ -31,7 +31,7 @@ import java.util.Map;
  * 知识图谱控制器
  */
 @RestController
-@RequestMapping("/api/v1/knowledge")
+@RequestMapping("/api/v1/knowledge-graph")
 @Tag(name = "Knowledge Controller", description = "知识图谱相关接口")
 @Slf4j
 public class KnowledgeController extends BaseController {

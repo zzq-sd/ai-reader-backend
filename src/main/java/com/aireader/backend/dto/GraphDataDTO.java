@@ -32,6 +32,18 @@ public class GraphDataDTO {
      * 图谱统计信息
      */
     private StatisticsDTO statistics;
+
+    /**
+     * 自定义构造函数，用于仅从节点和边创建对象
+     */
+    public GraphDataDTO(List<NodeDTO> nodes, List<EdgeDTO> edges) {
+        this.nodes = nodes;
+        this.edges = edges;
+        // 可以选择在这里根据节点和边计算统计信息
+        if (nodes != null && edges != null) {
+            this.statistics = new StatisticsDTO(nodes.size(), edges.size(), 0, 0, 0, 0.0);
+        }
+    }
     
     @Data
     @Builder

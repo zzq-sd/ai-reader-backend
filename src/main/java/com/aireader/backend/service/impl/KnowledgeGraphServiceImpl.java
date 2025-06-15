@@ -462,41 +462,111 @@ public class KnowledgeGraphServiceImpl implements KnowledgeGraphService {
 
     @Override
     public GraphDataDTO getGraphData(String nodeType, String search, int limit) {
-        log.debug("📊 获取图谱数据: nodeType={}, search={}, limit={}", nodeType, search, limit);
+        log.info("🌐 开始获取知识图谱数据... 类型: {}, 限制: {}", nodeType, limit);
+
+        // 1. 获取所有类型的节点 - 统一使用 Neo4jTemplate 确保关系被加载
+        List<ConceptNode> concepts = neo4jTemplate.findAll(ConceptNode.class);
+        List<ArticleNode> articles = neo4jTemplate.findAll(ArticleNode.class);
+        List<NoteNode> notes = neo4jTemplate.findAll(NoteNode.class);
+
+        // 2. 转换所有节点
+        List<GraphDataDTO.NodeDTO> nodes = new ArrayList<>();
+        concepts.forEach(c -> nodes.add(mapToNodeDTO(c)));
+        articles.forEach(a -> nodes.add(mapToNodeDTO(a)));
+        notes.forEach(n -> nodes.add(mapToNodeDTO(n)));
+
+        // 3. 获取和转换所有关系 (边)
+        List<GraphDataDTO.EdgeDTO> edges = new ArrayList<>();
         
-        try {
-            // 简化版本：返回基础图谱数据
-            List<GraphDataDTO.NodeDTO> nodes = new ArrayList<>();
-            List<GraphDataDTO.EdgeDTO> edges = new ArrayList<>();
-            
-            // 获取概念节点
-            List<ConceptNode> concepts = conceptNodeRepository.findAll();
-            for (ConceptNode concept : concepts) {
-                GraphDataDTO.NodeDTO nodeDTO = GraphDataDTO.NodeDTO.builder()
-                    .id(concept.getId().toString())
-                    .label(concept.getName())
-                    .type("CONCEPT")
-                    .category(concept.getType())
-                    .size(concept.getRelevanceScore() != null ? concept.getRelevanceScore() * 10 : 5.0)
-                    .importance(concept.getRelevanceScore())
-                    .build();
-                nodes.add(nodeDTO);
+        // 获取 概念-概念 关系
+        for (ConceptNode concept : concepts) {
+            if (concept.getRelatedConcepts() != null) {
+                concept.getRelatedConcepts().forEach(relationship -> {
+                    edges.add(mapToEdgeDTO(concept, relationship));
+                });
             }
-            
-            return GraphDataDTO.builder()
-                .nodes(nodes)
-                .edges(edges)
-                .statistics(GraphDataDTO.StatisticsDTO.builder()
-                    .totalNodes(nodes.size())
-                    .totalEdges(edges.size())
-                    .conceptCount(nodes.size())
-                    .build())
-                .build();
-            
-        } catch (Exception e) {
-            log.error("❌ 获取图谱数据失败", e);
-            throw new RuntimeException("获取图谱数据失败", e);
         }
+        
+        // 获取 文章-概念 关系
+        for (ArticleNode article : articles) {
+            if (article.getConcepts() != null) {
+                article.getConcepts().forEach(relationship -> {
+                    edges.add(mapToEdgeDTO(article, relationship));
+                });
+            }
+        }
+
+        // 获取 笔记-概念 关系
+        for (NoteNode note : notes) {
+            if (note.getConcepts() != null) {
+                note.getConcepts().forEach(relationship -> {
+                    edges.add(mapToEdgeDTO(note, relationship));
+                });
+            }
+        }
+        
+        log.info("✅ 知识图谱数据获取成功: {}个节点, {}条边", nodes.size(), edges.size());
+        return new GraphDataDTO(nodes, edges);
+    }
+
+    private GraphDataDTO.NodeDTO mapToNodeDTO(ConceptNode concept) {
+        return GraphDataDTO.NodeDTO.builder()
+                .id(concept.getId().toString())
+                .label(concept.getName())
+                .type("CONCEPT")
+                .importance(concept.getRelevanceScore())
+                .size(5.0 + (concept.getRelevanceScore() != null ? concept.getRelevanceScore() * 10 : 0))
+                .build();
+    }
+
+    private GraphDataDTO.NodeDTO mapToNodeDTO(ArticleNode article) {
+        return GraphDataDTO.NodeDTO.builder()
+                .id(article.getId().toString())
+                .label(article.getTitle())
+                .type("ARTICLE")
+                .importance(0.8) // Default importance
+                .size(8.0)
+                .build();
+    }
+
+    private GraphDataDTO.NodeDTO mapToNodeDTO(NoteNode note) {
+        return GraphDataDTO.NodeDTO.builder()
+                .id(note.getId().toString())
+                .label(note.getTitle())
+                .type("NOTE")
+                .importance(0.7) // Default importance
+                .size(6.0)
+                .build();
+    }
+
+    private GraphDataDTO.EdgeDTO mapToEdgeDTO(ConceptNode source, ConceptConceptRelationship relationship) {
+        return GraphDataDTO.EdgeDTO.builder()
+                .id(relationship.getId().toString())
+                .source(source.getId().toString())
+                .target(relationship.getTargetConcept().getId().toString())
+                .label(relationship.getRelationType())
+                .weight(relationship.getStrength())
+                .build();
+    }
+
+    private GraphDataDTO.EdgeDTO mapToEdgeDTO(ArticleNode source, ConceptRelationship relationship) {
+        return GraphDataDTO.EdgeDTO.builder()
+                .id(relationship.getId().toString())
+                .source(source.getId().toString())
+                .target(relationship.getConcept().getId().toString())
+                .label("ABOUT") // Default label for article-concept
+                .weight(relationship.getRelevanceScore())
+                .build();
+    }
+
+    private GraphDataDTO.EdgeDTO mapToEdgeDTO(NoteNode source, NoteConceptRelationship relationship) {
+        return GraphDataDTO.EdgeDTO.builder()
+                .id(relationship.getId().toString())
+                .source(source.getId().toString())
+                .target(relationship.getConcept().getId().toString())
+                .label(relationship.getRelationshipType())
+                .weight(relationship.getRelevanceScore())
+                .build();
     }
 
     @Override

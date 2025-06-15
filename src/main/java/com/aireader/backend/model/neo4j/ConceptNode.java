@@ -1,9 +1,6 @@
 package com.aireader.backend.model.neo4j;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.springframework.data.neo4j.core.schema.*;
 
 import java.time.LocalDateTime;
@@ -15,7 +12,10 @@ import java.util.Set;
  * 表示知识图谱中的概念或主题
  */
 @Node("Concept")
-@Data
+@Getter
+@Setter
+@ToString(exclude = {"relatedConcepts", "articlesAboutThisConcept"})
+@EqualsAndHashCode(exclude = {"relatedConcepts", "articlesAboutThisConcept"})
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
